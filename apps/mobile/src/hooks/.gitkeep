@@ -1,0 +1,6 @@
+/**
+ * App-specific hooks.
+ *
+ * Place hooks here that are specific to this app but not tied
+ * to a single feature. Generic, reusable hooks belong in @repo/hooks.
+ */

@@ -1,0 +1,8 @@
+/**
+ * Layout components for the mobile app.
+ *
+ * Layouts wrap pages and provide consistent structure:
+ *   AppLayout       — main app layout with Ionic tabs/sidemenu
+ *   AuthLayout      — layout for authentication screens
+ *   BlankLayout     — minimal layout for splash/onboarding
+ */

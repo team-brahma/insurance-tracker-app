@@ -1,0 +1,139 @@
+# =============================================================================
+# Dependencies
+# =============================================================================
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+
+# =============================================================================
+# Build outputs
+# =============================================================================
+dist/
+build/
+.next/
+out/
+
+# Root-level API build copy (dist-api/)
+dist-api/
+
+# =============================================================================
+# Environment variables — NEVER commit .env files
+# =============================================================================
+# Root-level
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Nested (apps/*, packages/*, etc.) — recursive pattern
+**/.env
+**/.env.local
+**/.env.development
+**/.env.development.local
+**/.env.test
+**/.env.test.local
+**/.env.production
+**/.env.production.local
+
+# =============================================================================
+# Turborepo — root & nested cache directories
+# =============================================================================
+.turbo/
+**/.turbo/
+
+# =============================================================================
+# Temporary & cache directories
+# =============================================================================
+.tmp/
+.corepack/
+
+# =============================================================================
+# AI tool directories
+# =============================================================================
+.opencode/
+
+# =============================================================================
+# IDE & Editor files
+# =============================================================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =============================================================================
+# OS generated files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# Logs
+# =============================================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
+coverage/
+*.lcov
+.nyc_output/
+
+# =============================================================================
+# TypeScript
+# =============================================================================
+*.tsbuildinfo
+
+# =============================================================================
+# Prisma
+# =============================================================================
+prisma/migrations/dev.db
+prisma/migrations/dev.db-journal
+
+# =============================================================================
+# Capacitor / Ionic — native platform directories
+# =============================================================================
+# Top-level android/ios directories (Capacitor default output)
+android/
+ios/
+
+# Android-specific generated & machine-local files (inside apps/mobile/android/)
+apps/mobile/android/.gradle/
+apps/mobile/android/.kotlin/
+apps/mobile/android/build/
+apps/mobile/android/local.properties
+apps/mobile/android/capacitor-cordova-android-plugins/
+
+# Capacitor auto-generated asset files (synced on every `cap sync`)
+apps/mobile/android/app/src/main/assets/public/
+apps/mobile/android/app/src/main/assets/capacitor.config.json
+apps/mobile/android/app/src/main/assets/capacitor.plugins.json
+apps/mobile/android/app/src/main/res/xml/config.xml
+
+# =============================================================================
+# Firebase / Google Services — sensitive config
+# =============================================================================
+# google-services.json contains Firebase project IDs and API keys.
+# Store these securely (CI secrets / Firebase App Distribution) — do NOT commit.
+google-services.json
+**/google-services.json
+GoogleService-Info.plist
+**/GoogleService-Info.plist

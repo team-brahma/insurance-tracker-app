@@ -1,0 +1,10 @@
+/**
+ * Service layer for the mobile app.
+ *
+ * Contains Axios API client setup and service modules.
+ * Each service module wraps API calls for a domain area.
+ *
+ *   services/
+ *     httpClient.ts   — configured Axios instance
+ *     <domain>.service.ts — domain-specific API calls
+ */

@@ -1,0 +1,8 @@
+# Prettier ignore
+node_modules
+dist
+.next
+build
+coverage
+*.min.js
+pnpm-lock.yaml

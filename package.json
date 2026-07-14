@@ -1,0 +1,41 @@
+{
+  "name": "insurance-tracker",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Enterprise Insurance Tracker monorepo",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:local": "pnpm -r --parallel run dev",
+    "build": "turbo run build",
+    "build:local": "pnpm --filter @repo/configs build && pnpm --filter @repo/constants build && pnpm --filter @repo/types build && pnpm --filter @repo/utils build && pnpm --filter @repo/hooks build && pnpm --filter @repo/ui build && pnpm --filter @repo/api build && pnpm --filter @repo/mobile build",
+    "lint": "turbo run lint",
+    "lint:local": "pnpm -r run lint",
+    "lint:fix": "turbo run lint:fix",
+    "typecheck": "turbo run typecheck",
+    "typecheck:local": "pnpm -r run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "turbo": "2.9.5",
+    "prettier": "3.9.4",
+    "husky": "9.1.7",
+    "lint-staged": "17.0.8"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

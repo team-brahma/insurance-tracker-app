@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  ADMIN
+  AGENT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(AGENT)
+  fcmToken  String?  @map("fcm_token")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  clients       Client[]
+  policies      Policy[]
+  enquiries     Enquiry[]
+  settings      Settings?
+  policyStatusChanges  PolicyStatusHistory[]
+  enquiryStatusChanges EnquiryStatusHistory[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model PolicyTypeMaster {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  policies  Policy[]
+  enquiries Enquiry[]
+
+  @@map("policy_types")
+}
+
+enum RenewalStatus {
+  PENDING
+  REMINDED
+  RENEWED
+  NOT_RENEWED
+  LAPSED
+
+  @@map("renewal_status")
+}
+
+model Client {
+  id             String   @id @default(uuid())
+  agentId        String   @map("agent_id")
+  insuredName  String   @map("insured_name")
+  mobileNumber String?  @map("mobile_number")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  agent    User     @relation(fields: [agentId], references: [id])
+  policies Policy[]
+
+  @@unique([agentId, mobileNumber])
+  @@map("clients")
+}
+
+model Policy {
+  id             String        @id @default(uuid())
+  agentId        String        @map("agent_id")
+  clientId       String        @map("client_id")
+  policyTypeId   String        @map("policy_type_id")
+  vehicleNumber  String?       @map("vehicle_number")
+  policyNumber   String?       @map("policy_number")
+  referenceNote  String?       @map("reference_note")
+  typeNote       String?       @map("type_note")
+  endDate        DateTime      @map("end_date")
+  renewalStatus  RenewalStatus @default(PENDING) @map("renewal_status")
+  premiumPrice   Decimal?      @map("premium_price")
+  paymentLink    String?       @map("payment_link")
+  renewalNotice    String?       @map("renewal_notice") @db.MediumText
+  additionalNotice String?       @map("additional_notice")
+  isClaimed      Boolean       @default(false) @map("is_claimed")
+  claimDate      DateTime?     @map("claim_date")
+  claimAmount    Decimal?      @map("claim_amount")
+  lastRemindedAt DateTime?     @map("last_reminded_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  agent           User                 @relation(fields: [agentId], references: [id])
+  client          Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  policyType      PolicyTypeMaster     @relation(fields: [policyTypeId], references: [id])
+  statusHistories PolicyStatusHistory[]
+
+  @@map("policies")
+}
+
+model Settings {
+  id                 String   @id @default(uuid())
+  agentId            String   @unique @map("agent_id")
+  reminderOffsets    Json     @default("[7,1]") @map("reminder_offsets")
+  appLockEnabled     Boolean  @default(false) @map("app_lock_enabled")
+  defaultCountryCode String   @default("+91") @map("default_country_code")
+  theme              String   @default("light") @map("theme")
+  reminderTime       String   @default("09:30") @map("reminder_time")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  agent User @relation(fields: [agentId], references: [id])
+
+  @@map("settings")
+}
+
+enum EnquiryStatus {
+  OPEN
+  CONVERTED
+  DROPPED
+
+  @@map("enquiry_status")
+}
+
+enum DropReason {
+  CLIENT_NOT_INTERESTED
+  PREMIUM_TOO_HIGH
+  WENT_WITH_COMPETITOR
+  CLIENT_UNREACHABLE
+  DUPLICATE_ENQUIRY
+  INVALID_DETAILS
+  OTHER
+
+  @@map("drop_reason")
+}
+
+model Enquiry {
+  id           String        @id @default(uuid())
+  agentId      String        @map("agent_id")
+  name         String
+  mobileNumber String        @map("mobile_number")
+  policyTypeId String        @map("policy_type_id")
+  referredBy   String?       @map("referred_by")
+  remindOn     DateTime?     @map("remind_on")
+  status       EnquiryStatus @default(OPEN)
+  dropReason   DropReason?   @map("drop_reason")
+  dropNote     String?       @map("drop_note")
+  droppedAt    DateTime?     @map("dropped_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  agent           User                   @relation(fields: [agentId], references: [id])
+  policyType      PolicyTypeMaster       @relation(fields: [policyTypeId], references: [id])
+  statusHistories EnquiryStatusHistory[]
+
+  @@unique([agentId, mobileNumber])
+  @@map("enquiries")
+}
+
+model PolicyStatusHistory {
+  id             String         @id @default(uuid())
+  policyId       String         @map("policy_id")
+  previousStatus RenewalStatus? @map("previous_status")
+  newStatus      RenewalStatus  @map("new_status")
+  changedById    String         @map("changed_by_id")
+  changedAt      DateTime       @default(now()) @map("changed_at")
+  notes          String?        @map("notes")
+
+  policy    Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id])
+
+  @@map("policy_status_histories")
+}
+
+model EnquiryStatusHistory {
+  id             String         @id @default(uuid())
+  enquiryId      String         @map("enquiry_id")
+  previousStatus EnquiryStatus? @map("previous_status")
+  newStatus      EnquiryStatus  @map("new_status")
+  changedById    String         @map("changed_by_id")
+  changedAt      DateTime       @default(now()) @map("changed_at")
+  notes          String?        @map("notes")
+
+  enquiry   Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  changedBy User    @relation(fields: [changedById], references: [id])
+
+  @@map("enquiry_status_histories")
+}

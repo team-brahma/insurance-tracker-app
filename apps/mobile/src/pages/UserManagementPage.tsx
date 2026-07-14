@@ -1,0 +1,399 @@
+import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useSearch } from '@hooks/useSearch.js';
+import {
+  UserPlus,
+  Trash2,
+  Search,
+  Mail,
+  Calendar,
+  Shield,
+  ShieldAlert,
+  Lock,
+  User,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import AppShellPage from '@components/layout/AppShellPage.js';
+import Badge from '@components/ui/Badge.js';
+import EmptyState from '@components/ui/EmptyState.js';
+import PageLoader from '@components/ui/PageLoader.js';
+import SurfaceCard from '@components/ui/SurfaceCard.js';
+import Dialog from '@components/ui/Dialog.js';
+import Button from '@components/ui/Button.js';
+import Input from '@components/ui/Input.js';
+import { useAuthStore } from '@features/auth/store/AuthStore.js';
+import {
+  useUsersQuery,
+  useCreateUserMutation,
+  useDeleteUserMutation,
+} from '@features/users/index.js';
+import { formatDate, initials } from '@repo/utils';
+import { VALIDATION, VALIDATION_ERRORS } from '@repo/constants';
+import type { User as RepoUser } from '@repo/types';
+
+const createUserSchema = z.object({
+  name: z.string().min(1, 'Name is required').regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+  email: z.string().regex(VALIDATION.EMAIL, VALIDATION_ERRORS.EMAIL),
+  password: z.string().min(VALIDATION.PASSWORD_MIN_LENGTH, VALIDATION_ERRORS.PASSWORD_MIN),
+  role: z.enum(['ADMIN', 'AGENT']),
+});
+
+type CreateUserFormValues = z.infer<typeof createUserSchema>;
+
+export default function UserManagementPage() {
+  const currentUser = useAuthStore((s) => s.user);
+  const { data: usersResponse, isLoading, error } = useUsersQuery();
+  const createUserMutation = useCreateUserMutation();
+  const deleteUserMutation = useDeleteUserMutation();
+
+  const {
+    searchText: searchQuery,
+    debouncedSearchText: debouncedSearchQuery,
+    setSearchText: setSearchQuery,
+  } = useSearch();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: { name: '', email: '', password: '', role: 'AGENT' },
+  });
+
+  const watchedRole = watch('role');
+
+  // Delete states
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  const filteredUsers = useMemo(() => {
+    const users = usersResponse?.data ?? [];
+    return users.filter((u: RepoUser) => {
+      const matchText = `${u.name} ${u.email}`.toLowerCase();
+      return matchText.includes(debouncedSearchQuery.toLowerCase());
+    });
+  }, [usersResponse, debouncedSearchQuery]);
+
+  const handleOpenCreate = () => {
+    reset({ name: '', email: '', password: '', role: 'AGENT' });
+    setIsCreateOpen(true);
+  };
+
+  const onSubmit = async (values: CreateUserFormValues) => {
+    try {
+      await createUserMutation.mutateAsync(values);
+      setIsCreateOpen(false);
+    } catch {
+      // Handled globally
+    }
+  };
+
+  const handleOpenDelete = (id: string) => {
+    if (id === currentUser?.id) {
+      toast.error('You cannot delete yourself.');
+      return;
+    }
+    setDeleteTargetId(id);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTargetId) return;
+
+    try {
+      await deleteUserMutation.mutateAsync(deleteTargetId);
+      setIsDeleteOpen(false);
+      setDeleteTargetId(null);
+    } catch {
+      setIsDeleteOpen(false);
+      setDeleteTargetId(null);
+    }
+  };
+
+  if (isLoading) {
+    return <PageLoader message="Loading users..." />;
+  }
+
+  if (error) {
+    return (
+      <AppShellPage title="User Management" icon={Shield}>
+        <div className="flex h-60 flex-col items-center justify-center rounded-2xl border border-line bg-paper/50 p-6 text-center">
+          <ShieldAlert className="mb-3 h-10 w-10 text-red-fg" />
+          <h3 className="font-bold text-ink">Failed to load users</h3>
+          <p className="mt-1 text-sm text-ink-soft">
+            {error instanceof Error ? error.message : 'An error occurred while fetching users.'}
+          </p>
+        </div>
+      </AppShellPage>
+    );
+  }
+
+  const actions = (
+    <Button
+      variant="primary"
+      size="md"
+      leftIcon={<UserPlus size={16} />}
+      onClick={handleOpenCreate}
+    >
+      Create User
+    </Button>
+  );
+
+  return (
+    <AppShellPage
+      title="User Management"
+      subtitle="Manage system administrators and insurance agent accounts"
+      icon={Shield}
+      actions={actions}
+      hero={
+        <div className="relative mt-2 max-w-md">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
+          <Input
+            type="text"
+            placeholder="Search users by name or email..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+            }}
+            className="pl-10"
+          />
+        </div>
+      }
+    >
+      {filteredUsers.length === 0 ? (
+        <EmptyState
+          icon={User}
+          variant={searchQuery ? 'search' : 'default'}
+          title={searchQuery ? 'No matching users' : 'No users registered'}
+          description={
+            searchQuery
+              ? 'Try adjusting your search terms.'
+              : 'Create a new user to grant portal access.'
+          }
+          tip={
+            searchQuery
+              ? 'Search by name or email address.'
+              : 'Users can have admin, agent, or viewer roles with different permissions.'
+          }
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredUsers.map((user: RepoUser) => {
+            const isMe = user.id === currentUser?.id;
+            return (
+              <SurfaceCard
+                key={user.id}
+                className="flex flex-col justify-between border border-line/60 p-5 transition-all hover:border-line-strong hover:shadow-md"
+              >
+                <div className="text-left">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-slate to-slate-soft text-sm font-black text-white shadow-sm ring-2 ring-white/10">
+                      {initials(user.name)}
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <Badge
+                        tone={user.role === 'ADMIN' ? 'overdue' : 'neutral'}
+                        className="font-extrabold uppercase tracking-wider text-[10px]"
+                      >
+                        {user.role}
+                      </Badge>
+                      {isMe && (
+                        <span className="rounded-full bg-slate/10 px-2 py-0.5 text-[9px] font-bold text-slate dark:bg-slate/25">
+                          You
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <h3 className="mt-4 font-sans text-[15px] font-black text-ink leading-tight truncate">
+                    {user.name}
+                  </h3>
+                  <div className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
+                    <Mail size={13} className="shrink-0 text-ink-faint" />
+                    <span className="truncate">{user.email}</span>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between border-t border-line/50 pt-4 text-xs text-ink-faint">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={13} className="shrink-0" />
+                    <span>Joined {formatDate(user.createdAt)}</span>
+                  </div>
+                  {!isMe && (
+                    <button
+                      onClick={() => {
+                        handleOpenDelete(user.id);
+                      }}
+                      className="group flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint hover:bg-red-bg hover:text-red-fg border border-transparent hover:border-red-edge/10 transition-all cursor-pointer"
+                      title={`Delete user ${user.name}`}
+                    >
+                      <Trash2 size={14} className="transition-transform group-hover:scale-105" />
+                    </button>
+                  )}
+                </div>
+              </SurfaceCard>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── CREATE USER MODAL ── */}
+      <Dialog
+        open={isCreateOpen}
+        onClose={() => {
+          setIsCreateOpen(false);
+        }}
+        title="Create New User"
+        description="Add a new administrator or insurance agent to the portal."
+      >
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(onSubmit)(e);
+          }}
+          className="mt-2 space-y-4 text-left"
+        >
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-ink-soft">Name</label>
+            <div className="relative">
+              <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+              <Input
+                type="text"
+                required
+                placeholder="e.g. John Doe"
+                error={errors.name?.message}
+                className="pl-9"
+                {...register('name')}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-ink-soft">Email Address</label>
+            <div className="relative">
+              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+              <Input
+                type="email"
+                required
+                placeholder="e.g. john@example.com"
+                error={errors.email?.message}
+                className="pl-9"
+                {...register('email')}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-ink-soft">Password</label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+              <Input
+                type="password"
+                required
+                placeholder="••••••••"
+                error={errors.password?.message}
+                className="pl-9"
+                {...register('password')}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-ink-soft">System Role</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setValue('role', 'AGENT');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${
+                  watchedRole === 'AGENT'
+                    ? 'border-slate bg-slate/5 text-slate font-bold'
+                    : 'border-line hover:border-line-strong text-ink-soft'
+                }`}
+              >
+                <User size={18} className="mb-1" />
+                <span className="text-xs">Agent</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setValue('role', 'ADMIN');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${
+                  watchedRole === 'ADMIN'
+                    ? 'border-slate bg-slate/5 text-slate font-bold'
+                    : 'border-line hover:border-line-strong text-ink-soft'
+                }`}
+              >
+                <Shield size={18} className="mb-1" />
+                <span className="text-xs">Administrator</span>
+              </button>
+            </div>
+            {errors.role?.message && (
+              <p className="text-xs font-medium text-red-fg mt-1">{errors.role.message}</p>
+            )}
+          </div>
+
+          <div className="pt-2 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                setIsCreateOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" loading={createUserMutation.isPending}>
+              Create User
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* ── DELETE CONFIRMATION DIALOG ── */}
+      <Dialog
+        open={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+        }}
+        title="Delete User"
+        description="Are you absolutely sure you want to delete this user? This action cannot be undone."
+      >
+        <div className="mt-4 space-y-4 text-left">
+          <p className="text-sm text-ink-soft leading-relaxed">
+            Deleting this user will revoke their access immediately. If they have active policies or
+            clients, the operation will fail to protect client records.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteOpen(false);
+                setDeleteTargetId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void handleDelete();
+              }}
+              loading={deleteUserMutation.isPending}
+            >
+              Confirm Delete
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    </AppShellPage>
+  );
+}

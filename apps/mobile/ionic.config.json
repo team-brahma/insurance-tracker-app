@@ -1,0 +1,7 @@
+{
+  "name": "Insurance_tracker",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}

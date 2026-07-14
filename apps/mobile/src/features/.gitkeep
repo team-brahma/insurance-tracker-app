@@ -1,0 +1,17 @@
+/**
+ * Feature modules for the mobile app.
+ *
+ * Each feature is a self-contained vertical slice:
+ *
+ *   features/
+ *     <feature-name>/
+ *       components/   — feature-specific components
+ *       hooks/        — feature-specific hooks
+ *       services/     — API calls for this feature
+ *       types/        — feature-specific types
+ *       utils/        — feature-specific utilities
+ *       index.ts      — public barrel export
+ *
+ * Features must not import from other features directly.
+ * Use the router or shared packages for cross-feature communication.
+ */

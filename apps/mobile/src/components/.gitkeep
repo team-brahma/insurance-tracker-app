@@ -1,0 +1,10 @@
+/**
+ * Shared UI components for the mobile app.
+ *
+ * Organize components by type:
+ *   components/ui/       — primitive/base components (Button, Input, Card, etc.)
+ *   components/layout/   — layout helpers (Container, Stack, Grid, etc.)
+ *   components/feedback/ — feedback components (Toast, Modal, Skeleton, etc.)
+ *
+ * Cross-app reusable components belong in @repo/ui.
+ */

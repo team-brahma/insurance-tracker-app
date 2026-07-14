@@ -1,0 +1,8 @@
+/**
+ * Static assets for the mobile app.
+ *
+ *   assets/
+ *     images/   — raster images (.png, .jpg, .webp)
+ *     icons/    — SVG icons not sourced from ionicons/MUI
+ *     fonts/    — self-hosted fonts
+ */

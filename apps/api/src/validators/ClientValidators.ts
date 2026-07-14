@@ -1,0 +1,29 @@
+import { z } from 'zod';
+import { VALIDATION, VALIDATION_ERRORS } from '@repo/constants';
+
+export const createClientSchema = z.object({
+  insuredName: z
+    .string()
+    .min(1, 'Insured name is required')
+    .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+  mobileNumber: z
+    .string()
+    .min(1, 'Mobile number is required')
+    .refine((v) => v === '' || VALIDATION.INDIA_MOBILE.test(v), {
+      message: VALIDATION_ERRORS.INDIA_MOBILE,
+    }),
+});
+
+export const updateClientSchema = z.object({
+  insuredName: z
+    .string()
+    .min(1, 'Insured name is required')
+    .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME)
+    .nullish(),
+  mobileNumber: z
+    .string()
+    .refine((v) => v === '' || VALIDATION.INDIA_MOBILE.test(v), {
+      message: VALIDATION_ERRORS.INDIA_MOBILE,
+    })
+    .nullish(),
+});

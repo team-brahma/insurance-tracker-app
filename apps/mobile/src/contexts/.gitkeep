@@ -1,0 +1,7 @@
+/**
+ * React Context providers for the mobile app.
+ *
+ * Keep contexts lean — prefer TanStack Query for server state
+ * and Zustand for global client state.
+ * Use contexts only for truly global, non-async state.
+ */

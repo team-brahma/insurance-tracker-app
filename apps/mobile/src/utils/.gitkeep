@@ -1,0 +1,6 @@
+/**
+ * App-specific utility functions.
+ *
+ * Utilities specific to this app.
+ * Domain-agnostic utilities belong in @repo/utils.
+ */

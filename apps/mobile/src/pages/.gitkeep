@@ -1,0 +1,7 @@
+/**
+ * Page components for the mobile app.
+ *
+ * Each file in this directory corresponds to a route.
+ * Pages orchestrate features and layouts — they should contain
+ * minimal logic themselves.
+ */

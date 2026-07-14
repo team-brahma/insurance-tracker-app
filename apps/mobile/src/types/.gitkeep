@@ -1,0 +1,6 @@
+/**
+ * App-specific TypeScript types.
+ *
+ * Types specific to this app.
+ * Shared cross-app types belong in @repo/types.
+ */

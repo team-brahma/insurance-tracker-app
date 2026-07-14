@@ -1,0 +1,70 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# =============================================================================
+# pnpm 11 Settings
+# =============================================================================
+
+# Suppress known peer dependency warnings.
+# eslint-plugin-react@7.37.5 works with ESLint 10 but hasn't updated its
+# peerDependencies declaration yet.
+peerDependencyRules:
+  allowedVersions:
+    eslint-plugin-react>eslint: "10"
+    eslint-plugin-react-hooks>eslint: "10"
+
+# Approve native build scripts for trusted packages.
+# These are required for Prisma query engine and Vite's esbuild bundler.
+onlyBuiltDependencies:
+  - "@firebase/util"
+  - "@prisma/engines"
+  - "esbuild"
+  - "prisma"
+  - "protobufjs"
+  - "unrs-resolver"
+minimumReleaseAgeExclude:
+  - '@tailwindcss/node@4.3.2'
+  - '@tailwindcss/oxide-android-arm64@4.3.2'
+  - '@tailwindcss/oxide-darwin-arm64@4.3.2'
+  - '@tailwindcss/oxide-darwin-x64@4.3.2'
+  - '@tailwindcss/oxide-freebsd-x64@4.3.2'
+  - '@tailwindcss/oxide-linux-arm-gnueabihf@4.3.2'
+  - '@tailwindcss/oxide-linux-arm64-gnu@4.3.2'
+  - '@tailwindcss/oxide-linux-arm64-musl@4.3.2'
+  - '@tailwindcss/oxide-linux-x64-gnu@4.3.2'
+  - '@tailwindcss/oxide-linux-x64-musl@4.3.2'
+  - '@tailwindcss/oxide-wasm32-wasi@4.3.2'
+  - '@tailwindcss/oxide-win32-arm64-msvc@4.3.2'
+  - '@tailwindcss/oxide-win32-x64-msvc@4.3.2'
+  - '@tailwindcss/oxide@4.3.2'
+  - '@tailwindcss/vite@4.3.2'
+  - '@turbo/darwin-64@2.10.1'
+  - '@turbo/darwin-arm64@2.10.1'
+  - '@turbo/linux-64@2.10.1'
+  - '@turbo/linux-arm64@2.10.1'
+  - '@turbo/windows-64@2.10.1'
+  - '@turbo/windows-arm64@2.10.1'
+  - '@typescript-eslint/eslint-plugin@8.62.1'
+  - '@typescript-eslint/parser@8.62.1'
+  - '@typescript-eslint/project-service@8.62.1'
+  - '@typescript-eslint/scope-manager@8.62.1'
+  - '@typescript-eslint/tsconfig-utils@8.62.1'
+  - '@typescript-eslint/type-utils@8.62.1'
+  - '@typescript-eslint/types@8.62.1'
+  - '@typescript-eslint/typescript-estree@8.62.1'
+  - '@typescript-eslint/utils@8.62.1'
+  - '@typescript-eslint/visitor-keys@8.62.1'
+  - prettier@3.9.4
+  - react-router@8.1.0
+  - tailwindcss@4.3.2
+  - turbo@2.10.1
+  - typescript-eslint@8.62.1
+  - vite@8.1.1
+allowBuilds:
+  '@firebase/util': true
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+  protobufjs: true
+  unrs-resolver: true
