@@ -145,6 +145,8 @@ export default function PolicyListPage() {
   const [activeUrgency, setActiveUrgency] = useState<UrgencyBucket | null>(null);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [tempFilterTypes, setTempFilterTypes] = useState<string[]>([]);
+  const [tempFilterStatuses, setTempFilterStatuses] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
@@ -155,10 +157,20 @@ export default function PolicyListPage() {
     } else {
       setActiveUrgency(null);
     }
+
+    const renewalStatus = queryParams.get('renewalStatus');
+    if (renewalStatus && ALL_STATUSES.includes(renewalStatus)) {
+      setFilterStatuses([renewalStatus]);
+    } else {
+      setFilterStatuses([]);
+    }
   }, [location.search]);
 
   const params: PolicyListParams = {};
   if (debouncedSearchText) params.search = debouncedSearchText;
+  if (activeUrgency) params.urgency = activeUrgency;
+  if (filterStatuses.length > 0) params.renewalStatus = filterStatuses.join(',');
+  if (filterTypes.length > 0) params.policyType = filterTypes.join(',');
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useInfinitePoliciesQuery(params);
@@ -184,20 +196,15 @@ export default function PolicyListPage() {
 
   const allPolicies = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
 
-  const { counts, unfilteredByUrgencyCount } = useMemo(() => {
-    const buckets = { overdue: 0, due7: 0, due30: 0, future: 0 };
-    if (allPolicies.length === 0) return { counts: buckets, unfilteredByUrgencyCount: 0 };
-    const today = new Date();
-    let count = 0;
-    for (const policy of allPolicies) {
-      if (filterTypes.length > 0 && !filterTypes.includes(policy.policyTypeId)) continue;
-      if (filterStatuses.length > 0 && !filterStatuses.includes(policy.renewalStatus)) continue;
-      const days = daysToExpiry(policy.endDate, today);
-      buckets[urgencyBucket(days)] += 1;
-      count++;
-    }
-    return { counts: buckets, unfilteredByUrgencyCount: count };
-  }, [allPolicies, filterTypes, filterStatuses]);
+  const firstPageMeta = data?.pages[0]?.meta as any;
+  const counts = useMemo(() => {
+    return {
+      overdue: firstPageMeta?.urgencyCounts?.overdue ?? 0,
+      due7: firstPageMeta?.urgencyCounts?.due7 ?? 0,
+      due30: firstPageMeta?.urgencyCounts?.due30 ?? 0,
+      future: firstPageMeta?.urgencyCounts?.future ?? 0,
+    };
+  }, [firstPageMeta]);
 
   const enriched = useMemo(() => {
     if (allPolicies.length === 0) return [];
@@ -207,18 +214,11 @@ export default function PolicyListPage() {
         const days = daysToExpiry(policy.endDate, today);
         return { ...policy, daysToExpiry: days, urgency: urgencyBucket(days) };
       })
-      .filter((policy) => {
-        if (activeUrgency && policy.urgency !== activeUrgency) return false;
-        if (filterTypes.length > 0 && !filterTypes.includes(policy.policyTypeId)) return false;
-        if (filterStatuses.length > 0 && !filterStatuses.includes(policy.renewalStatus))
-          return false;
-        return true;
-      })
       .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
-  }, [allPolicies, activeUrgency, filterStatuses, filterTypes]);
+  }, [allPolicies]);
 
   const activeFilterCount = filterTypes.length + filterStatuses.length;
-  const totalCount = unfilteredByUrgencyCount;
+  const totalCount = firstPageMeta?.urgencyCounts?.all ?? 0;
 
   if (isLoading) return <PageLoader variant="list" />;
 
@@ -276,6 +276,8 @@ export default function PolicyListPage() {
             <button
               type="button"
               onClick={() => {
+                setTempFilterTypes(filterTypes);
+                setTempFilterStatuses(filterStatuses);
                 setShowFilters(true);
               }}
               className={cn(
@@ -562,10 +564,10 @@ export default function PolicyListPage() {
           <FilterChips
             label="Policy type"
             items={allTypeIds}
-            selected={filterTypes}
+            selected={tempFilterTypes}
             getLabel={(v) => policyTypes.find((t) => t.id === v)?.name || v}
             onToggle={(v) => {
-              setFilterTypes((prev) =>
+              setTempFilterTypes((prev) =>
                 prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
               );
             }}
@@ -574,10 +576,10 @@ export default function PolicyListPage() {
           <FilterChips
             label="Renewal status"
             items={ALL_STATUSES}
-            selected={filterStatuses}
+            selected={tempFilterStatuses}
             getLabel={(v) => RENEWAL_STATUS_LABELS[v]}
             onToggle={(v) => {
-              setFilterStatuses((prev) =>
+              setTempFilterStatuses((prev) =>
                 prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
               );
             }}
@@ -589,8 +591,8 @@ export default function PolicyListPage() {
               size="lg"
               className="flex-1"
               onClick={() => {
-                setFilterTypes([]);
-                setFilterStatuses([]);
+                setTempFilterTypes([]);
+                setTempFilterStatuses([]);
               }}
             >
               Clear all
@@ -600,6 +602,8 @@ export default function PolicyListPage() {
               size="lg"
               className="flex-1"
               onClick={() => {
+                setFilterTypes(tempFilterTypes);
+                setFilterStatuses(tempFilterStatuses);
                 setShowFilters(false);
               }}
             >

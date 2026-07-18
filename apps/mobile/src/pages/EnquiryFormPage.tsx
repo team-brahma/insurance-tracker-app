@@ -22,12 +22,26 @@ import { cn } from '@utils/Cn.js';
 
 const enquirySchema = z.object({
   name: z.string().min(1, 'Name is required').regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
-  mobileNumber: z.string().refine((v) => VALIDATION.INDIA_MOBILE.test(v.replace(/\D/g, '')), {
-    message: VALIDATION_ERRORS.INDIA_MOBILE,
-  }),
+  mobileNumber: z
+    .string()
+    .min(1, 'Mobile number is required')
+    .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE),
   policyType: z.string().min(1, 'Policy type is required'),
   referredBy: z.string().optional(),
-  remindOn: z.string().optional(),
+  remindOn: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dateVal = new Date(val);
+        dateVal.setHours(0, 0, 0, 0);
+        return dateVal >= today;
+      },
+      { message: 'Date cannot be in the past' },
+    ),
   remindTime: z.string().optional(),
   status: z.string().optional(),
 });
@@ -87,6 +101,11 @@ export default function EnquiryFormPage() {
   const history = useHistory();
   const isEdit = !!id;
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -152,6 +171,7 @@ export default function EnquiryFormPage() {
     watch,
     handleSubmit,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(enquirySchema),
@@ -159,10 +179,43 @@ export default function EnquiryFormPage() {
   });
 
   useEffect(() => {
-    if (existing) {
-      setValue('policyType', existing.policyTypeId);
+    if (isEdit && existing) {
+      let remindOnDate = '';
+      let remindOnTime = '09:30';
+      if (existing.remindOn) {
+        const dateObj = new Date(existing.remindOn);
+        if (!isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          remindOnDate = `${year}-${month}-${day}`;
+
+          const hours = String(dateObj.getHours()).padStart(2, '0');
+          const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+          remindOnTime = `${hours}:${minutes}`;
+        }
+      }
+      reset({
+        name: existing.name,
+        mobileNumber: existing.mobileNumber,
+        policyType: existing.policyTypeId,
+        referredBy: existing.referredBy ?? '',
+        remindOn: remindOnDate,
+        remindTime: remindOnTime,
+        status: existing.status,
+      });
+    } else if (!isEdit) {
+      reset({
+        name: '',
+        mobileNumber: '',
+        policyType: '',
+        referredBy: '',
+        remindOn: '',
+        remindTime: '09:30',
+        status: 'OPEN',
+      });
     }
-  }, [existing, setValue]);
+  }, [existing, isEdit, reset]);
 
   useEffect(() => {
     if (!isEdit && policyTypes.length > 0 && !watch('policyType')) {
@@ -197,9 +250,10 @@ export default function EnquiryFormPage() {
         }
       }
 
+      const digits = values.mobileNumber.replace(/\D/g, '');
       const payload = {
         name: values.name,
-        mobileNumber: values.mobileNumber,
+        mobileNumber: `+91${digits.slice(-10)}`,
         policyType: values.policyType,
         referredBy: values.referredBy ?? null,
         remindOn: remindOnISO,
@@ -410,7 +464,7 @@ export default function EnquiryFormPage() {
         )}
       </IonHeader>
 
-      <IonContent className="ion-padding-bottom" scrollY={!isDesktop}>
+      <IonContent className="ion-padding-bottom" scrollY={true}>
         <motion.div
           variants={stagger}
           initial="hidden"
@@ -422,6 +476,7 @@ export default function EnquiryFormPage() {
               void handleSubmit(onSubmit)(e);
             }}
             className="space-y-5 bg-surface border border-line p-6 rounded-2xl shadow-sm text-left"
+            noValidate
           >
             <Input
               label="Client Name"
@@ -445,6 +500,7 @@ export default function EnquiryFormPage() {
               render={({ field }) => (
                 <Select
                   label="Interested Policy Type"
+                  required
                   value={field.value}
                   onValueChange={field.onChange}
                   options={typeOptions}
@@ -464,6 +520,7 @@ export default function EnquiryFormPage() {
               <Input
                 label="Remind On"
                 type="date"
+                min={todayStr}
                 error={errors.remindOn?.message}
                 {...register('remindOn')}
               />

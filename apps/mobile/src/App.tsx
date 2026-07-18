@@ -13,8 +13,8 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster, toast } from 'sonner';
 import { TooltipProvider } from '@components/ui/Tooltip.js';
 import { useAuthStore } from '@features/auth/store/AuthStore.js';
-import { useThemeStore } from '@features/settings/store/ThemeStore.js';
-import { settingsService } from '@features/policies/services/SettingsService.js';
+import { useThemeStore, type Theme } from '@features/settings/store/ThemeStore.js';
+import { useSettingsQuery } from '@features/policies/hooks/useSettingsQuery.js';
 import { useMeQuery } from '@features/auth/hooks/useAuth.js';
 import { useMinWidth } from '@hooks/useMinWidth.js';
 import {
@@ -192,6 +192,23 @@ function AuthenticatedShell() {
 
 function ThemeManager() {
   const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+
+  // Fetch settings dynamically using React Query when authenticated
+  const { data: settingsData } = useSettingsQuery({
+    enabled: isAuthenticated && user?.role !== 'ADMIN',
+  });
+
+  const serverTheme = settingsData?.data.theme;
+
+  // Keep the client-side store in sync with the server settings
+  useEffect(() => {
+    if (serverTheme && serverTheme !== theme) {
+      setTheme(serverTheme as Theme);
+    }
+  }, [serverTheme, theme, setTheme]);
 
   useEffect(() => {
     let isDark = false;
@@ -250,19 +267,6 @@ function AuthGate() {
       queryClient.clear();
       prevAuthRef.current = isAuthenticated;
       prevUserIdRef.current = userId;
-
-      // Sync theme from server once on login (false -> true), never on reload
-      if (isAuthenticated && user?.role !== 'ADMIN') {
-        settingsService
-          .get()
-          .then((res) => {
-            const serverTheme: string = res.data.theme;
-            if (serverTheme !== useThemeStore.getState().theme) {
-              useThemeStore.getState().setTheme(serverTheme as 'light' | 'dark' | 'system');
-            }
-          })
-          .catch(() => undefined);
-      }
     }
   }, [isAuthenticated, userId, user?.role, queryClient]);
 

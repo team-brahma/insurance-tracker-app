@@ -15,6 +15,7 @@ export interface SelectProps {
   disabled?: boolean;
   className?: string;
   label?: string;
+  required?: boolean;
   error?: string | undefined;
 }
 
@@ -26,11 +27,17 @@ export default function Select({
   disabled,
   className,
   label,
+  required,
   error,
 }: SelectProps) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-semibold text-ink-soft">{label}</label>}
+      {label && (
+        <label className="text-xs font-semibold text-ink-soft">
+          {label}
+          {required && <span className="ml-1 text-red-edge">*</span>}
+        </label>
+      )}
       <RadixSelect.Root value={value} onValueChange={onValueChange} disabled={disabled ?? false}>
         <RadixSelect.Trigger
           className={cn(

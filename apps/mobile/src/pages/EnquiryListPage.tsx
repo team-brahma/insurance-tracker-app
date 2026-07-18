@@ -32,7 +32,6 @@ import {
 } from '@features/enquiries/index.js';
 import { ENQUIRY_STATUS_LABELS } from '@repo/constants';
 import { usePolicyTypesQuery } from '@features/policyTypes/index.js';
-import type { Enquiry } from '@repo/types';
 import { formatDateTime, initials } from '@repo/utils';
 import { cn } from '@utils/Cn.js';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
@@ -124,6 +123,7 @@ export default function EnquiryListPage() {
 
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [tempFilterTypes, setTempFilterTypes] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [dropTarget, setDropTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -137,10 +137,13 @@ export default function EnquiryListPage() {
     }
   }, [location.search]);
 
-  const params: EnquiryListParams = {};
-  if (debouncedSearchText) params.search = debouncedSearchText;
-  const policyType0 = filterTypes[0];
-  if (filterTypes.length === 1 && policyType0 !== undefined) params.policyType = policyType0;
+  const params = useMemo(() => {
+    const p: EnquiryListParams = {};
+    if (debouncedSearchText) p.search = debouncedSearchText;
+    if (activeStatus) p.status = activeStatus;
+    if (filterTypes.length > 0) p.policyType = filterTypes.join(',');
+    return p;
+  }, [debouncedSearchText, activeStatus, filterTypes]);
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useInfiniteEnquiriesQuery(params);
@@ -169,26 +172,11 @@ export default function EnquiryListPage() {
 
   const allEnquiries = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
 
-  const { counts, unfilteredCount } = useMemo(() => {
-    const buckets = { OPEN: 0, CONVERTED: 0, DROPPED: 0 };
-    if (allEnquiries.length === 0) return { counts: buckets, unfilteredCount: 0 };
-    let count = 0;
-    for (const enquiry of allEnquiries) {
-      if (filterTypes.length > 0 && !filterTypes.includes(enquiry.policyTypeId)) continue;
-      buckets[enquiry.status] += 1;
-      count++;
-    }
-    return { counts: buckets, unfilteredCount: count };
-  }, [allEnquiries, filterTypes]);
-
-  const filtered = useMemo(() => {
-    if (allEnquiries.length === 0) return [];
-    return allEnquiries.filter((enquiry: Enquiry) => {
-      if (activeStatus && (enquiry.status as string) !== activeStatus) return false;
-      if (filterTypes.length > 0 && !filterTypes.includes(enquiry.policyTypeId)) return false;
-      return true;
-    });
-  }, [allEnquiries, activeStatus, filterTypes]);
+  const firstPageMeta = data?.pages[0]?.meta as
+    | { statusCounts?: { OPEN: number; CONVERTED: number; DROPPED: number; all: number } }
+    | undefined;
+  const statusCounts = firstPageMeta?.statusCounts ?? { OPEN: 0, CONVERTED: 0, DROPPED: 0, all: 0 };
+  const unallEnquiriesCount = statusCounts.all;
 
   const handleDropConfirm = async (dropReason: string, dropNote?: string) => {
     if (!dropTarget) return;
@@ -219,10 +207,10 @@ export default function EnquiryListPage() {
   if (isLoading) return <PageLoader variant="list" />;
 
   const statusTabs = [
-    { key: null, label: 'All', count: unfilteredCount },
-    { key: 'OPEN', label: 'Open', count: counts.OPEN },
-    { key: 'CONVERTED', label: 'Converted', count: counts.CONVERTED },
-    { key: 'DROPPED', label: 'Dropped', count: counts.DROPPED },
+    { key: null, label: 'All', count: unallEnquiriesCount },
+    { key: 'OPEN', label: 'Open', count: statusCounts.OPEN },
+    { key: 'CONVERTED', label: 'Converted', count: statusCounts.CONVERTED },
+    { key: 'DROPPED', label: 'Dropped', count: statusCounts.DROPPED },
   ] as const;
 
   return (
@@ -271,6 +259,7 @@ export default function EnquiryListPage() {
             <button
               type="button"
               onClick={() => {
+                setTempFilterTypes(filterTypes);
                 setShowFilters(true);
               }}
               className={cn(
@@ -290,7 +279,7 @@ export default function EnquiryListPage() {
 
           {/* Counts row */}
           <div className="flex items-center gap-2 flex-wrap text-left">
-            <Badge tone="accent">{`${String(unfilteredCount)} enquiries`}</Badge>
+            <Badge tone="accent">{`${String(unallEnquiriesCount)} enquiries`}</Badge>
             {activeFilterCount > 0 && (
               <Badge tone="neutral">{`${String(activeFilterCount)} filter${activeFilterCount > 1 ? 's' : ''}`}</Badge>
             )}
@@ -346,7 +335,7 @@ export default function EnquiryListPage() {
       </IonRefresher>
 
       <div className="min-w-0 space-y-6">
-        {filtered.length === 0 && !isFetchingNextPage && !hasNextPage ? (
+        {allEnquiries.length === 0 && !isFetchingNextPage && !hasNextPage ? (
           <EmptyState
             icon={HelpCircle}
             variant={activeFilterCount > 0 ? 'filter' : 'search'}
@@ -373,7 +362,7 @@ export default function EnquiryListPage() {
           />
         ) : null}
 
-        {filtered.length > 0 && (
+        {allEnquiries.length > 0 && (
           <motion.div
             key={`${String(activeStatus)}-${debouncedSearchText}`}
             variants={stagger}
@@ -381,7 +370,7 @@ export default function EnquiryListPage() {
             animate="show"
             className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr"
           >
-            {filtered.map((enquiry) => {
+            {allEnquiries.map((enquiry) => {
               const cardStatusTone =
                 (enquiry.status as string) === 'OPEN'
                   ? 'pending'
@@ -560,10 +549,10 @@ export default function EnquiryListPage() {
           <FilterChips
             label="Policy type"
             items={allTypeIds}
-            selected={filterTypes}
+            selected={tempFilterTypes}
             getLabel={(v) => policyTypes.find((t) => t.id === v)?.name || v}
             onToggle={(v) => {
-              setFilterTypes((prev) =>
+              setTempFilterTypes((prev) =>
                 prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
               );
             }}
@@ -575,7 +564,7 @@ export default function EnquiryListPage() {
               size="lg"
               className="flex-1"
               onClick={() => {
-                setFilterTypes([]);
+                setTempFilterTypes([]);
               }}
             >
               Clear all
@@ -585,6 +574,7 @@ export default function EnquiryListPage() {
               size="lg"
               className="flex-1"
               onClick={() => {
+                setFilterTypes(tempFilterTypes);
                 setShowFilters(false);
               }}
             >

@@ -263,7 +263,7 @@ export default function PolicyTypesPage() {
         title={editingType ? 'Edit Policy Type' : 'Add Policy Type'}
         description="Configure dynamic parameters of this policy classification."
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left" noValidate>
           <Input
             label="Name"
             placeholder="e.g. Cyber Insurance"

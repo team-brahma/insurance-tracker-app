@@ -4,8 +4,8 @@ import type { RenewalStatus } from '@prisma/client';
 export interface PolicyFilters {
   agentId: string;
   search?: string;
-  policyType?: string; // This holds policyTypeId
-  renewalStatus?: RenewalStatus;
+  policyType?: string | string[]; // This holds policyTypeId(s)
+  renewalStatus?: RenewalStatus | RenewalStatus[];
   urgency?: 'overdue' | 'due7' | 'due30' | 'future';
   page?: number;
   limit?: number;
@@ -32,11 +32,24 @@ export const policyRepository = {
     }
 
     if (filters.policyType) {
-      AND.push({ policyTypeId: filters.policyType });
+      if (Array.isArray(filters.policyType)) {
+        AND.push({ policyTypeId: { in: filters.policyType } });
+      } else {
+        AND.push({ policyTypeId: filters.policyType });
+      }
     }
 
     if (filters.renewalStatus) {
-      AND.push({ renewalStatus: filters.renewalStatus });
+      if (Array.isArray(filters.renewalStatus)) {
+        AND.push({ renewalStatus: { in: filters.renewalStatus } });
+      } else {
+        AND.push({ renewalStatus: filters.renewalStatus });
+      }
+    }
+
+    const baseWhereForUrgency = { ...where };
+    if (AND.length > 0) {
+      baseWhereForUrgency.AND = [...AND];
     }
 
     if (filters.urgency) {
@@ -72,15 +85,37 @@ export const policyRepository = {
       where.AND = AND;
     }
 
-    const [data, total] = await Promise.all([
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const due7Date = new Date(today);
+    due7Date.setDate(due7Date.getDate() + 7);
+    const due30Date = new Date(today);
+    due30Date.setDate(due30Date.getDate() + 30);
+
+    const buildWhereWithUrgencyFilter = (urgencyFilter: Record<string, unknown>) => {
+      const queryWhere = { ...baseWhereForUrgency };
+      const queryAND = Array.isArray(baseWhereForUrgency.AND)
+        ? [...(baseWhereForUrgency.AND as Record<string, unknown>[])]
+        : [];
+      queryAND.push(urgencyFilter);
+      queryWhere.AND = queryAND;
+      return queryWhere;
+    };
+
+    const [data, total, totalMatching, overdueCount, due7Count, due30Count, futureCount] = await Promise.all([
       db.policy.findMany({
         where,
         include: { client: true, policyType: true },
-        orderBy: { endDate: 'asc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
       db.policy.count({ where }),
+      db.policy.count({ where: baseWhereForUrgency }),
+      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { lt: today } }) }),
+      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due7Date } }) }),
+      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due30Date } }) }),
+      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gt: due30Date } }) }),
     ]);
 
     return {
@@ -90,6 +125,13 @@ export const policyRepository = {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+        urgencyCounts: {
+          overdue: overdueCount,
+          due7: due7Count,
+          due30: due30Count,
+          future: futureCount,
+          all: totalMatching,
+        },
       },
     };
   },

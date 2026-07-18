@@ -18,7 +18,28 @@ function getFirebaseApp(): App | null {
   }
 
   try {
-    const serviceAccount = JSON.parse(serviceAccountJson) as ServiceAccount;
+    let serviceAccount: ServiceAccount;
+    // Match escaped quotes: \"private_key\": \"...\" or \"private_key\":\"...\"
+    const regex = /\\"private_key\\":\s*\\"(.*?)\\"/;
+    const match = regex.exec(serviceAccountJson);
+    if (match?.[1]) {
+      const rawPrivateKey = match[1];
+      const placeholder = '@@PRIVATE_KEY_PLACEHOLDER@@';
+      const rawWithPlaceholder = serviceAccountJson.replace(rawPrivateKey, placeholder);
+
+      const cleanedWithPlaceholder = rawWithPlaceholder.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+
+      serviceAccount = JSON.parse(cleanedWithPlaceholder) as ServiceAccount;
+      // Convert \n (backslash + n) in the private key to actual newlines for Firebase
+      serviceAccount.privateKey = rawPrivateKey.replace(/\\n/g, '\n');
+      (serviceAccount as ServiceAccount & { private_key?: string }).private_key =
+        rawPrivateKey.replace(/\\n/g, '\n');
+    } else {
+      // Fallback if the regex doesn't match
+      const cleanedJson = serviceAccountJson.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+      serviceAccount = JSON.parse(cleanedJson) as ServiceAccount;
+    }
+
     initializeApp({ credential: cert(serviceAccount) });
     initialized = true;
     console.info('[FCM] Firebase Admin SDK initialized.');
@@ -91,6 +112,7 @@ export async function sendPushNotification(
 
 export async function runRenewalNotificationJob(
   targetTime?: string,
+  bypassLastReminded = false,
 ): Promise<NotificationJobSummary> {
   const db = getDb();
   const app = getFirebaseApp();
@@ -159,14 +181,16 @@ export async function runRenewalNotificationJob(
 
       if (!offsets.includes(daysLeft)) continue;
 
-      const lastReminded = policy.lastRemindedAt
-        ? new Date(
-            policy.lastRemindedAt.getFullYear(),
-            policy.lastRemindedAt.getMonth(),
-            policy.lastRemindedAt.getDate(),
-          )
-        : null;
-      if (lastReminded && lastReminded.getTime() === today.getTime()) continue;
+      if (!bypassLastReminded) {
+        const lastReminded = policy.lastRemindedAt
+          ? new Date(
+              policy.lastRemindedAt.getFullYear(),
+              policy.lastRemindedAt.getMonth(),
+              policy.lastRemindedAt.getDate(),
+            )
+          : null;
+        if (lastReminded && lastReminded.getTime() === today.getTime()) continue;
+      }
 
       summary.policyCandidates += 1;
 

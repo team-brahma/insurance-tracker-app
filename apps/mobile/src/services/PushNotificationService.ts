@@ -113,22 +113,29 @@ export async function getFcmToken(): Promise<string | null> {
       };
 
       // Register listeners BEFORE register() to avoid missing the event
-      PushNotifications.addListener('registration', (token: Token) => {
+      const regPromise = PushNotifications.addListener('registration', (token: Token) => {
         console.info('[FCM] Device token obtained:', token.value);
         settled(token.value);
-      }).then((h) => {
-        regHandle = h;
       });
 
-      PushNotifications.addListener('registrationError', (err) => {
+      const errPromise = PushNotifications.addListener('registrationError', (err) => {
         console.error('[FCM] Registration error:', err);
         settled(null);
-      }).then((h) => {
-        errHandle = h;
       });
 
-      PushNotifications.register();
-      registered = true;
+      Promise.all([regPromise, errPromise])
+        .then((handles) => {
+          regHandle = handles[0];
+          errHandle = handles[1];
+          return PushNotifications.register();
+        })
+        .then(() => {
+          registered = true;
+        })
+        .catch((err: unknown) => {
+          console.error('[FCM] Failed during setup or registration:', err);
+          settled(null);
+        });
     });
 
     return token;
@@ -223,23 +230,18 @@ export async function initPushNotifications(navigate: NotificationNavigateCallba
     }
   }
 
-  if (!registered) {
-    await PushNotifications.register();
-    registered = true;
-  }
-
   // ── Token registration (initial + refresh) ────────────────────────────────
-  void PushNotifications.addListener('registration', (token: Token) => {
+  const regPromise = PushNotifications.addListener('registration', (token: Token) => {
     console.info('[FCM] Token registered/refreshed:', token.value);
     void sendTokenToBackend(token.value);
   });
 
-  void PushNotifications.addListener('registrationError', (err) => {
+  const errPromise = PushNotifications.addListener('registrationError', (err) => {
     console.error('[FCM] Registration error:', err);
   });
 
   // ── Foreground notification received ─────────────────────────────────────
-  void PushNotifications.addListener(
+  const recvPromise = PushNotifications.addListener(
     'pushNotificationReceived',
     (notification: PushNotificationSchema) => {
       const data = parseNotificationData(notification);
@@ -265,7 +267,7 @@ export async function initPushNotifications(navigate: NotificationNavigateCallba
   );
 
   // ── Notification tapped (background / killed state) ───────────────────────
-  void PushNotifications.addListener(
+  const actPromise = PushNotifications.addListener(
     'pushNotificationActionPerformed',
     (action: ActionPerformed) => {
       const data = parseNotificationData(action.notification);
@@ -279,4 +281,15 @@ export async function initPushNotifications(navigate: NotificationNavigateCallba
       }
     },
   );
+
+  // Wait for all listeners to be attached before registering
+  try {
+    await Promise.all([regPromise, errPromise, recvPromise, actPromise]);
+    if (!registered) {
+      await PushNotifications.register();
+      registered = true;
+    }
+  } catch (err) {
+    console.error('[FCM] Failed to initialize listeners or register:', err);
+  }
 }

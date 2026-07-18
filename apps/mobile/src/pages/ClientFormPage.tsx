@@ -23,9 +23,7 @@ const clientSchema = z.object({
   mobileNumber: z
     .string()
     .min(1, 'Mobile number is required')
-    .refine((v) => VALIDATION.INDIA_MOBILE.test(v.replace(/\D/g, '')), {
-      message: VALIDATION_ERRORS.INDIA_MOBILE,
-    }),
+    .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE),
 });
 
 type FormValues = z.infer<typeof clientSchema>;
@@ -89,11 +87,26 @@ export default function ClientFormPage() {
     register,
     handleSubmit,
     watch,
+    reset,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues,
   });
+
+  useEffect(() => {
+    if (isEdit && existing) {
+      reset({
+        insuredName: existing.insuredName,
+        mobileNumber: existing.mobileNumber?.replace('+91', '') ?? '',
+      });
+    } else if (!isEdit) {
+      reset({
+        insuredName: '',
+        mobileNumber: '',
+      });
+    }
+  }, [existing, isEdit, reset]);
 
   const watchName = watch('insuredName');
   const watchMobile = watch('mobileNumber');
@@ -109,7 +122,7 @@ export default function ClientFormPage() {
     try {
       const payload = {
         insuredName: values.insuredName.trim(),
-        mobileNumber: `+91${values.mobileNumber.replace(/\D/g, '')}`,
+        mobileNumber: `+91${values.mobileNumber.replace(/\D/g, '').slice(-10)}`,
       };
 
       if (isEdit && id) {
@@ -281,7 +294,7 @@ export default function ClientFormPage() {
         )}
       </IonHeader>
 
-      <IonContent className="ion-padding-bottom" scrollY={!isDesktop}>
+      <IonContent className="ion-padding-bottom" scrollY={true}>
         <motion.div
           variants={stagger}
           initial="hidden"
@@ -293,6 +306,7 @@ export default function ClientFormPage() {
               void handleSubmit(onSubmit)(e);
             }}
             className="space-y-5 bg-surface border border-line p-6 rounded-2xl shadow-sm text-left"
+            noValidate
           >
             <Input
               label="Insured Name"
@@ -305,6 +319,7 @@ export default function ClientFormPage() {
             <Input
               label="Mobile Number"
               placeholder="e.g. 9876543210"
+              required
               error={errors.mobileNumber?.message}
               prefix="+91"
               {...register('mobileNumber')}

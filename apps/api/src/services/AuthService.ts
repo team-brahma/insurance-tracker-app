@@ -14,7 +14,6 @@ function sanitizeUser(user: {
   name: string;
   role: string;
   createdAt: Date;
-  updatedAt: Date;
 }) {
   return {
     id: user.id,
@@ -22,7 +21,6 @@ function sanitizeUser(user: {
     name: user.name,
     role: user.role,
     createdAt: user.createdAt.toISOString(),
-    updatedAt: user.updatedAt.toISOString(),
   };
 }
 

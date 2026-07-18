@@ -4,6 +4,7 @@ import { assertAuthenticated } from '@middlewares/Auth.js';
 import { ValidationError } from '@errors/AppError.js';
 import { HTTP_STATUS } from '@repo/constants';
 import { normaliseMobile } from '@repo/utils';
+import { sanitizeClient } from '@utils/sanitize.js';
 import { createClientSchema, updateClientSchema } from '@validators/index.js';
 
 export const clientController = {
@@ -19,20 +20,24 @@ export const clientController = {
       insuredName: body.insuredName,
       mobileNumber: normaliseMobile(body.mobileNumber)!,
     });
+    sanitizeClient(client as Record<string, unknown>);
     return reply.code(HTTP_STATUS.CREATED).send({ success: true, data: client });
   },
 
   async list(request: FastifyRequest, reply: FastifyReply) {
     const { id: agentId } = assertAuthenticated(request);
     const query = request.query as Record<string, string | undefined>;
+    const exactMobile = query.exact_mobile ?? query.exactMobile;
+    const exactName = query.exact_name ?? query.exactName;
     const result = await clientService.list(
       agentId,
       query.search,
       query.page ? parseInt(query.page, 10) : undefined,
       query.limit ? parseInt(query.limit, 10) : undefined,
-      query.exact_mobile,
-      query.exact_name,
+      exactMobile,
+      exactName,
     );
+    for (const c of result.data) sanitizeClient(c as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, ...result });
   },
 
@@ -40,6 +45,7 @@ export const clientController = {
     const { id: agentId } = assertAuthenticated(request);
     const { id } = request.params as { id: string };
     const client = await clientService.getById(agentId, id);
+    sanitizeClient(client as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: client });
   },
 
@@ -56,6 +62,7 @@ export const clientController = {
     if (body.insuredName !== undefined) data.insuredName = body.insuredName;
     if (body.mobileNumber !== undefined) data.mobileNumber = normaliseMobile(body.mobileNumber);
     const client = await clientService.update(agentId, id, data);
+    sanitizeClient(client as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: client });
   },
 

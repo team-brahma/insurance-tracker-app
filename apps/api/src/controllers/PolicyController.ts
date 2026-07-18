@@ -5,6 +5,7 @@ import { ValidationError } from '@errors/AppError.js';
 import { HTTP_STATUS } from '@repo/constants';
 import { normaliseMobile } from '@repo/utils';
 import { appConfig } from '@config/index.js';
+import { sanitizePolicy, sanitizeUser } from '@utils/sanitize.js';
 import {
   createPolicySchema,
   updatePolicySchema,
@@ -25,13 +26,18 @@ export const policyController = {
     const query = request.query as Record<string, string | undefined>;
     const params: Record<string, unknown> = {};
     if (query.search) params.search = query.search;
-    if (query.policyType) params.policyType = query.policyType;
-    if (query.renewalStatus) params.renewalStatus = query.renewalStatus;
+    const policyTypeFilter = query.policy_type ?? query.policyType;
+    if (policyTypeFilter) params.policyType = policyTypeFilter.split(',');
+    const renewalStatusFilter = query.renewal_status ?? query.renewalStatus;
+    if (renewalStatusFilter) params.renewalStatus = renewalStatusFilter.split(',');
     if (query.urgency) params.urgency = query.urgency;
     if (query.page) params.page = parseInt(query.page, 10);
     if (query.limit) params.limit = parseInt(query.limit, 10);
     const result = await policyService.list(agentId, params);
-    for (const p of result.data) applyRenewalNoticeUrl(p);
+    for (const p of result.data) {
+      applyRenewalNoticeUrl(p);
+      sanitizePolicy(p);
+    }
     return reply.code(HTTP_STATUS.OK).send({ success: true, ...result });
   },
 
@@ -40,6 +46,7 @@ export const policyController = {
     const { id } = request.params as { id: string };
     const policy = (await policyService.getById(agentId, id)) as Record<string, unknown>;
     applyRenewalNoticeUrl(policy);
+    sanitizePolicy(policy);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: policy });
   },
 
@@ -75,6 +82,7 @@ export const policyController = {
       data as Parameters<typeof policyService.create>[1],
     )) as Record<string, unknown>;
     applyRenewalNoticeUrl(policy);
+    sanitizePolicy(policy);
     return reply.code(HTTP_STATUS.CREATED).send({ success: true, data: policy });
   },
 
@@ -107,6 +115,7 @@ export const policyController = {
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;
     const policy = (await policyService.update(agentId, id, data)) as Record<string, unknown>;
     applyRenewalNoticeUrl(policy);
+    sanitizePolicy(policy);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: policy });
   },
 
@@ -131,6 +140,7 @@ export const policyController = {
       unknown
     >;
     applyRenewalNoticeUrl(policy);
+    sanitizePolicy(policy);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: policy });
   },
 
@@ -138,6 +148,9 @@ export const policyController = {
     const { id: agentId } = assertAuthenticated(request);
     const { id } = request.params as { id: string };
     const history = await policyService.getStatusHistory(agentId, id);
+    for (const h of history) {
+      sanitizeUser(h.changedBy as Record<string, unknown>);
+    }
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: history });
   },
 

@@ -258,51 +258,37 @@ export default function UserManagementPage() {
             void handleSubmit(onSubmit)(e);
           }}
           className="mt-2 space-y-4 text-left"
+          noValidate
         >
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-ink-soft">Name</label>
-            <div className="relative">
-              <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
-              <Input
-                type="text"
-                required
-                placeholder="e.g. John Doe"
-                error={errors.name?.message}
-                className="pl-9"
-                {...register('name')}
-              />
-            </div>
-          </div>
+          <Input
+            label="Name"
+            type="text"
+            required
+            leftElement={<User size={15} />}
+            placeholder="e.g. John Doe"
+            error={errors.name?.message}
+            {...register('name')}
+          />
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-ink-soft">Email Address</label>
-            <div className="relative">
-              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
-              <Input
-                type="email"
-                required
-                placeholder="e.g. john@example.com"
-                error={errors.email?.message}
-                className="pl-9"
-                {...register('email')}
-              />
-            </div>
-          </div>
+          <Input
+            label="Email Address"
+            type="email"
+            required
+            leftElement={<Mail size={15} />}
+            placeholder="e.g. john@example.com"
+            error={errors.email?.message}
+            {...register('email')}
+          />
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-ink-soft">Password</label>
-            <div className="relative">
-              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
-              <Input
-                type="password"
-                required
-                placeholder="••••••••"
-                error={errors.password?.message}
-                className="pl-9"
-                {...register('password')}
-              />
-            </div>
-          </div>
+          <Input
+            label="Password"
+            type="password"
+            required
+            leftElement={<Lock size={15} />}
+            placeholder="••••••••"
+            error={errors.password?.message}
+            {...register('password')}
+          />
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-ink-soft">System Role</label>

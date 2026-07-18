@@ -17,7 +17,6 @@ import {
   Bar,
   Cell,
   XAxis,
-  Tooltip as RechartsTooltip,
 } from 'recharts';
 import AppShellPage from '@components/layout/AppShellPage.js';
 import MetricCard from '@components/ui/MetricCard.js';
@@ -89,11 +88,11 @@ export default function DashboardPage() {
   ];
 
   const statusBarData = [
-    { label: 'Pending', value: stats.pending, fill: '#f59e0b' },
-    { label: 'Reminded', value: stats.reminded, fill: '#0891b2' },
-    { label: 'Renewed', value: stats.renewed, fill: '#22c55e' },
-    { label: 'Not Renewed', value: stats.notRenewed, fill: '#f43f5e' },
-    { label: 'Lapsed', value: stats.lapsed, fill: '#94a3b8' },
+    { label: 'Pending', value: stats.pending, fill: '#f59e0b', status: 'PENDING' },
+    { label: 'Reminded', value: stats.reminded, fill: '#0891b2', status: 'REMINDED' },
+    { label: 'Renewed', value: stats.renewed, fill: '#22c55e', status: 'RENEWED' },
+    { label: 'Not Renewed', value: stats.notRenewed, fill: '#f43f5e', status: 'NOT_RENEWED' },
+    { label: 'Lapsed', value: stats.lapsed, fill: '#94a3b8', status: 'LAPSED' },
   ];
 
   const radialData = [{ name: 'Renewed', value: renewalRate, fill: 'var(--slate)' }];
@@ -179,7 +178,21 @@ export default function DashboardPage() {
           >
             <div className="mt-2 space-y-3 sm:space-y-4">
               {statusBarData.map((s) => (
-                <div key={s.label}>
+                <div
+                  key={s.label}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    history.push(`/policies?renewalStatus=${s.status}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      history.push(`/policies?renewalStatus=${s.status}`);
+                    }
+                  }}
+                  className="cursor-pointer rounded-lg outline-none"
+                >
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="text-xs sm:text-sm lg:text-[15px] font-semibold text-ink-soft">
                       {s.label}
@@ -221,20 +234,17 @@ export default function DashboardPage() {
                     axisLine={false}
                     tickLine={false}
                   />
-                  <RechartsTooltip
-                    contentStyle={{
-                      background: 'var(--surface)',
-                      border: '1px solid var(--line)',
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontFamily: 'inherit',
-                    }}
-                    cursor={{ fill: 'var(--paper)', radius: 8 }}
-                  />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {statusBarData.map((entry, index) => (
                       // eslint-disable-next-line @typescript-eslint/no-deprecated
-                      <Cell key={index} fill={entry.fill} />
+                      <Cell
+                        key={index}
+                        fill={entry.fill}
+                        className="cursor-pointer"
+                        onClick={() => {
+                          history.push(`/policies?renewalStatus=${entry.status}`);
+                        }}
+                      />
                     ))}
                   </Bar>
                 </BarChart>

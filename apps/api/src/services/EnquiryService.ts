@@ -4,8 +4,8 @@ import type { EnquiryStatus, DropReason } from '@prisma/client';
 
 interface ListEnquiriesParams {
   search?: string;
-  policyType?: string; // This holds policyTypeId
-  status?: EnquiryStatus;
+  policyType?: string | string[];
+  status?: string | string[];
   page?: number;
   limit?: number;
 }

@@ -6,8 +6,8 @@ import type { RenewalStatus } from '@prisma/client';
 
 interface ListPoliciesParams {
   search?: string;
-  policyType?: string; // This holds policyTypeId
-  renewalStatus?: RenewalStatus;
+  policyType?: string | string[]; // This holds policyTypeId
+  renewalStatus?: RenewalStatus | RenewalStatus[];
   urgency?: string;
   page?: number;
   limit?: number;

@@ -50,7 +50,7 @@ export const clientRepository = {
       db.client.findMany({
         where,
         include: { policies: { include: { policyType: true } } },
-        orderBy: { insuredName: 'asc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),

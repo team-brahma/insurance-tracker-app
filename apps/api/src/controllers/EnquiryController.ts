@@ -4,6 +4,7 @@ import { assertAuthenticated } from '@middlewares/Auth.js';
 import { ValidationError } from '@errors/AppError.js';
 import { HTTP_STATUS } from '@repo/constants';
 import { normaliseMobile } from '@repo/utils';
+import { sanitizeEnquiry, sanitizeUser } from '@utils/sanitize.js';
 import {
   createEnquirySchema,
   updateEnquirySchema,
@@ -16,11 +17,13 @@ export const enquiryController = {
     const query = request.query as Record<string, string | undefined>;
     const params: Record<string, unknown> = {};
     if (query.search) params.search = query.search;
-    if (query.policyType) params.policyType = query.policyType;
+    const policyTypeFilter = query.policy_type ?? query.policyType;
+    if (policyTypeFilter) params.policyType = policyTypeFilter.split(',');
     if (query.status) params.status = query.status;
     if (query.page) params.page = parseInt(query.page, 10);
     if (query.limit) params.limit = parseInt(query.limit, 10);
     const result = await enquiryService.list(agentId, params);
+    for (const e of result.data) sanitizeEnquiry(e as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, ...result });
   },
 
@@ -28,6 +31,7 @@ export const enquiryController = {
     const { id: agentId } = assertAuthenticated(request);
     const { id } = request.params as { id: string };
     const enquiry = await enquiryService.getById(agentId, id);
+    sanitizeEnquiry(enquiry as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: enquiry });
   },
 
@@ -44,6 +48,7 @@ export const enquiryController = {
       agentId,
       data as Parameters<typeof enquiryService.create>[1],
     );
+    sanitizeEnquiry(enquiry as Record<string, unknown>);
     return reply.code(HTTP_STATUS.CREATED).send({ success: true, data: enquiry });
   },
 
@@ -64,6 +69,7 @@ export const enquiryController = {
     if (body.remindOn !== undefined) data.remindOn = body.remindOn;
     if (body.status !== undefined) data.status = body.status;
     const enquiry = await enquiryService.update(agentId, id, data);
+    sanitizeEnquiry(enquiry as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: enquiry });
   },
 
@@ -90,6 +96,7 @@ export const enquiryController = {
       (dropReason ?? undefined) as Parameters<typeof enquiryService.updateStatus>[3],
       dropNote ?? undefined,
     );
+    sanitizeEnquiry(enquiry as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: enquiry });
   },
 
@@ -97,6 +104,9 @@ export const enquiryController = {
     const { id: agentId } = assertAuthenticated(request);
     const { id } = request.params as { id: string };
     const history = await enquiryService.getStatusHistory(agentId, id);
+    for (const h of history) {
+      sanitizeUser(h.changedBy as Record<string, unknown>);
+    }
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: history });
   },
 };

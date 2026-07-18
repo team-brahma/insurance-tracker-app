@@ -438,3 +438,15 @@ button,
   border-style: revert-layer;
   border-color: revert-layer;
 }
+
+/* Remove focus outline on recharts components on mouse click/touch, keep for keyboard navigation */
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus {
+  outline: none !important;
+}
+
+.recharts-wrapper:focus-visible,
+.recharts-wrapper *:focus-visible {
+  outline: 2px solid var(--slate) !important;
+  outline-offset: 2px;
+}

@@ -11,7 +11,7 @@ export const policyTypeRepository = {
     const where = search ? { name: { contains: search } } : undefined;
 
     const findOptions: Parameters<typeof db.policyTypeMaster.findMany>[0] = {
-      orderBy: { name: 'asc' },
+      orderBy: { createdAt: 'desc' },
     };
 
     const countOptions: Parameters<typeof db.policyTypeMaster.count>[0] = {};

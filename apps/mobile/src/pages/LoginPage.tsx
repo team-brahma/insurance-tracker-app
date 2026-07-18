@@ -65,6 +65,7 @@ export default function LoginPage() {
                   void handleSubmit(onSubmit)(e);
                 }}
                 className="space-y-4"
+                noValidate
               >
                 <Input
                   label="Email"

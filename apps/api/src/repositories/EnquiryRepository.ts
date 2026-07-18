@@ -4,8 +4,8 @@ import type { EnquiryStatus, DropReason } from '@prisma/client';
 export interface EnquiryFilters {
   agentId: string;
   search?: string;
-  policyType?: string; // This holds policyTypeId
-  status?: EnquiryStatus;
+  policyType?: string | string[];
+  status?: string | string[];
   page?: number;
   limit?: number;
 }
@@ -31,18 +31,28 @@ export const enquiryRepository = {
     }
 
     if (filters.policyType) {
-      AND.push({ policyTypeId: filters.policyType });
+      if (Array.isArray(filters.policyType)) {
+        AND.push({ policyTypeId: { in: filters.policyType } });
+      } else {
+        AND.push({ policyTypeId: filters.policyType });
+      }
     }
 
     if (filters.status) {
-      AND.push({ status: filters.status });
+      if (Array.isArray(filters.status)) {
+        AND.push({ status: { in: filters.status } });
+      } else {
+        AND.push({ status: filters.status });
+      }
     }
 
     if (AND.length > 0) {
       where.AND = AND;
     }
 
-    const [data, total] = await Promise.all([
+    const baseWhereForStatus = { ...where };
+
+    const [data, total, openCount, convertedCount, droppedCount] = await Promise.all([
       db.enquiry.findMany({
         where,
         include: { policyType: true },
@@ -51,6 +61,9 @@ export const enquiryRepository = {
         take: limit,
       }),
       db.enquiry.count({ where }),
+      db.enquiry.count({ where: { ...baseWhereForStatus, status: 'OPEN' } }),
+      db.enquiry.count({ where: { ...baseWhereForStatus, status: 'CONVERTED' } }),
+      db.enquiry.count({ where: { ...baseWhereForStatus, status: 'DROPPED' } }),
     ]);
 
     return {
@@ -60,6 +73,12 @@ export const enquiryRepository = {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+        statusCounts: {
+          OPEN: openCount,
+          CONVERTED: convertedCount,
+          DROPPED: droppedCount,
+          all: total,
+        },
       },
     };
   },

@@ -14,7 +14,6 @@ import {
   ChevronRight,
   Sparkles,
   AlertCircle,
-  ShieldCheck,
   Paperclip,
   X,
 } from 'lucide-react';
@@ -47,29 +46,44 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], hasClientI
   const motorPolicyType = policyTypes.find((t) => t.name.toUpperCase() === 'MOTOR');
   const motorId = motorPolicyType?.id || 'MOTOR';
   const mobileValidation = hasClientId
-    ? z.string()
-    : z.string().min(1, 'Mobile number is required for new clients');
+    ? z
+        .string()
+        .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE)
+        .or(z.literal(''))
+    : z
+        .string()
+        .min(1, 'Mobile number is required for new clients')
+        .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE);
   return z
     .object({
       insuredName: z
         .string()
         .min(1, 'Insured name is required')
         .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
-      mobileNumber: mobileValidation.refine(
-        (v) => v === '' || VALIDATION.INDIA_MOBILE.test(v.replace(/\D/g, '')),
-        { message: VALIDATION_ERRORS.INDIA_MOBILE },
-      ),
+      mobileNumber: mobileValidation,
       referenceNote: z.string(),
       policyType: z.string().min(1, 'Policy type is required'),
       vehicleNumber: z.string(),
-      policyNumber: z.string().refine((v) => v === '' || VALIDATION.POLICY_NUMBER.test(v), {
-        message: VALIDATION_ERRORS.POLICY_NUMBER,
-      }),
-      endDate: z.string().min(1, 'Renewal end date is required'),
+      policyNumber: z
+        .string()
+        .min(1, 'Policy number is required')
+        .regex(VALIDATION.POLICY_NUMBER, VALIDATION_ERRORS.POLICY_NUMBER),
+      endDate: z
+        .string()
+        .min(1, 'Renewal end date is required')
+        .refine(
+          (val) => {
+            if (!val) return true;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dateVal = new Date(val);
+            dateVal.setHours(0, 0, 0, 0);
+            return dateVal >= today;
+          },
+          { message: 'Renewal end date cannot be in the past' },
+        ),
       premiumPrice: z.string(),
-      paymentLink: z.string().refine((v) => v === '' || VALIDATION.URL.test(v), {
-        message: VALIDATION_ERRORS.URL,
-      }),
+      paymentLink: z.string().regex(VALIDATION.URL, VALIDATION_ERRORS.URL).or(z.literal('')),
       renewalNotice: z.string(),
       additionalNotice: z.string(),
       isClaimed: z.boolean(),
@@ -124,6 +138,11 @@ export default function PolicyFormPage() {
   const history = useHistory();
   const location = useLocation<{ from?: string } | null>();
   const isEdit = !!id;
+
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  }, []);
 
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClientObj, setSelectedClientObj] = useState<{
@@ -240,13 +259,12 @@ export default function PolicyFormPage() {
   const previewStatus = existing?.renewalStatus ?? 'PENDING';
 
   // Weighted progress calculation for Add Mode
-  const requiredFields = ['insuredName', 'policyType', 'endDate'];
+  const requiredFields = ['insuredName', 'policyType', 'endDate', 'policyNumber'];
   if (isMotor) requiredFields.push('vehicleNumber');
 
   const optionalFields = [
     'mobileNumber',
     'referenceNote',
-    'policyNumber',
     'premiumPrice',
     'paymentLink',
     'renewalNotice',
@@ -376,6 +394,24 @@ export default function PolicyFormPage() {
         claimDate: '',
         claimAmount: '',
       });
+    } else if (!isEdit && !enquiry) {
+      reset({
+        insuredName: '',
+        mobileNumber: '',
+        referenceNote: '',
+        policyType: '',
+        vehicleNumber: '',
+        policyNumber: '',
+        endDate: '',
+        premiumPrice: '',
+        paymentLink: '',
+        renewalNotice: '',
+        additionalNotice: '',
+        isClaimed: false,
+        claimDate: '',
+        claimAmount: '',
+      });
+      setPdfFileName(null);
     }
   }, [existing, enquiry, isEdit, reset, foundClient, isClientLookupLoading]);
 
@@ -392,8 +428,11 @@ export default function PolicyFormPage() {
     if (existing?.client) {
       setSelectedClientId(existing.client.id);
       setSelectedClientObj(existing.client);
+    } else if (!isEdit && !isConvertMode) {
+      setSelectedClientId(null);
+      setSelectedClientObj(null);
     }
-  }, [existing]);
+  }, [existing, isEdit, isConvertMode]);
 
   // Show loader while editing (missing policy data) or while looking up a client on convert
   if (isEdit && (isLoading || !existing)) {
@@ -492,7 +531,7 @@ export default function PolicyFormPage() {
       endDate: form.endDate,
     };
     if (selectedClientId) payload.clientId = selectedClientId;
-    if (mn) payload.mobileNumber = `+91${mn.replace(/\D/g, '')}`;
+    if (mn) payload.mobileNumber = `+91${mn.replace(/\D/g, '').slice(-10)}`;
     if (form.referenceNote.trim()) payload.referenceNote = form.referenceNote.trim();
     if (isMotor) payload.vehicleNumber = form.vehicleNumber.trim().toUpperCase();
     if (form.policyNumber.trim()) payload.policyNumber = form.policyNumber.trim();
@@ -809,6 +848,7 @@ export default function PolicyFormPage() {
                       <Input
                         label="Mobile Number"
                         placeholder="e.g. 9876543210"
+                        required={!selectedClientId}
                         disabled={!!selectedClientId}
                         error={errors.mobileNumber?.message}
                         prefix="+91"
@@ -817,14 +857,14 @@ export default function PolicyFormPage() {
                     </div>
                   </div>
 
-                  {/* Policy Configuration */}
+                  {/* Policy Information */}
                   <div className="space-y-5 bg-surface border border-line p-5 sm:p-6 rounded-2xl shadow-sm text-left">
                     <div className="flex items-center gap-2.5 pb-3 border-b border-line">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate/10 dark:bg-slate/20 text-slate border border-slate/15 shrink-0">
                         <FileText size={13} />
                       </div>
                       <h3 className="text-xs font-bold text-ink leading-none">
-                        Policy Configuration
+                        Policy Information
                       </h3>
                     </div>
 
@@ -834,6 +874,7 @@ export default function PolicyFormPage() {
                       render={({ field }) => (
                         <Select
                           label="Policy Type"
+                          required
                           value={field.value}
                           onValueChange={field.onChange}
                           options={typeOptions}
@@ -855,6 +896,7 @@ export default function PolicyFormPage() {
                     <Input
                       label="Policy Number"
                       placeholder="e.g. POL123456"
+                      required
                       error={errors.policyNumber?.message}
                       {...register('policyNumber')}
                     />
@@ -863,9 +905,73 @@ export default function PolicyFormPage() {
                       label="End Date"
                       type="date"
                       required
+                      min={todayStr}
                       error={errors.endDate?.message}
                       {...register('endDate')}
                     />
+
+                    {/* Claim Details */}
+                    <div className="pt-4 border-t border-line space-y-4">
+                      <Controller
+                        name="isClaimed"
+                        control={control}
+                        render={({ field }) => (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/45 text-amber-700 dark:text-amber-300 shrink-0">
+                                <AlertCircle size={11} />
+                              </div>
+                              <span className="text-xs font-bold text-ink">Claimed</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                field.onChange(!field.value);
+                              }}
+                              className={cn(
+                                'relative h-6 w-11 rounded-full border transition-all duration-200',
+                                field.value
+                                  ? 'border-rose-400/40 bg-rose-500/15 dark:bg-rose-500/30'
+                                  : 'border-line-strong bg-surface',
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  'absolute top-0.5 left-0.5 h-[18px] w-[18px] rounded-full border shadow-sm transition-all duration-200',
+                                  field.value
+                                    ? 'translate-x-[18px] border-rose-400 bg-rose-500 dark:bg-rose-400'
+                                    : 'translate-x-0 border-line-strong bg-white dark:bg-line',
+                                )}
+                              />
+                            </button>
+                          </div>
+                        )}
+                      />
+
+                      {watchIsClaimed && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="space-y-4 overflow-hidden"
+                        >
+                          <Input
+                            label="Claim Date"
+                            type="date"
+                            error={errors.claimDate?.message}
+                            {...register('claimDate')}
+                          />
+                          <Input
+                            label="Claim Amount (Rs.)"
+                            placeholder="e.g. 50000"
+                            type="number"
+                            error={errors.claimAmount?.message}
+                            {...register('claimAmount')}
+                          />
+                        </motion.div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -984,82 +1090,21 @@ export default function PolicyFormPage() {
                   </div>
                 </div>
 
-                {/* Claim Settlement */}
-                <div className="space-y-5 bg-surface border border-line p-5 sm:p-6 rounded-2xl shadow-sm text-left">
-                  <div className="flex items-center gap-2.5 pb-3 border-b border-line">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/45 text-rose-700 dark:text-rose-300 border border-rose-200/40 shrink-0">
-                      <ShieldCheck size={13} />
-                    </div>
-                    <h3 className="text-xs font-bold text-ink leading-none">Claim Settlement</h3>
-                  </div>
-
-                  <Controller
-                    name="isClaimed"
-                    control={control}
-                    render={({ field }) => (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/45 text-amber-700 dark:text-amber-300 shrink-0">
-                            <AlertCircle size={11} />
-                          </div>
-                          <span className="text-xs font-bold text-ink">Claimed*</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            field.onChange(!field.value);
-                          }}
-                          className={cn(
-                            'relative h-6 w-11 rounded-full border transition-all duration-200',
-                            field.value
-                              ? 'border-rose-400/40 bg-rose-500/15 dark:bg-rose-500/30'
-                              : 'border-line-strong bg-surface',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'absolute top-0.5 left-0.5 h-[18px] w-[18px] rounded-full border shadow-sm transition-all duration-200',
-                              field.value
-                                ? 'translate-x-[18px] border-rose-400 bg-rose-500 dark:bg-rose-400'
-                                : 'translate-x-0 border-line-strong bg-white dark:bg-line',
-                            )}
-                          />
-                        </button>
-                      </div>
-                    )}
-                  />
-
-                  {watchIsClaimed && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-4 overflow-hidden"
-                    >
-                      <Input
-                        label="Claim Date"
-                        type="date"
-                        error={errors.claimDate?.message}
-                        {...register('claimDate')}
-                      />
-                      <Input
-                        label="Claim Amount (Rs.)"
-                        placeholder="e.g. 50000"
-                        type="number"
-                        error={errors.claimAmount?.message}
-                        {...register('claimAmount')}
-                      />
-                    </motion.div>
-                  )}
-                </div>
-
                 {/* Sticky Preview Widget on Desktop */}
                 <div className="hidden lg:block space-y-2 text-left sticky top-6">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">
                     Live Registry Preview
                   </span>
-                  <div className="rounded-2xl border border-line bg-surface/50 backdrop-blur-sm overflow-hidden p-0 relative shadow-sm pointer-events-none select-none">
+                  <div
+                    onClick={() => {
+                      toast('Live Preview Only', {
+                        description:
+                          'This is a real-time visual representation of the renewal card. Save the form to create it and unlock actions on the dashboard.',
+                        duration: 4000,
+                      });
+                    }}
+                    className="rounded-2xl border border-line bg-surface/50 backdrop-blur-sm overflow-hidden p-0 relative shadow-sm select-none cursor-pointer hover:border-indigo-500/30 hover:bg-surface/75 active:scale-[0.99] transition-all duration-200"
+                  >
                     <div className="flex items-stretch">
                       <div
                         className={cn(
@@ -1161,6 +1206,9 @@ export default function PolicyFormPage() {
                       </div>
                     </div>
                   </div>
+                  <p className="text-[10px] text-ink-faint text-center mt-1.5 font-medium select-none">
+                    * Visual preview only. Save the renewal to activate action buttons.
+                  </p>
                 </div>
               </div>
             </div>

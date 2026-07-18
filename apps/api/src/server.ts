@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './config/dotenv.js';
 import cron from 'node-cron';
 import { buildApp } from './app.js';
 import { appConfig } from './config/index.js';
