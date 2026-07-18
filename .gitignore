@@ -115,8 +115,8 @@ prisma/migrations/dev.db-journal
 # Capacitor / Ionic — native platform directories
 # =============================================================================
 # Top-level android/ios directories (Capacitor default output)
-android/
-ios/
+/android/
+/ios/
 
 # Android-specific generated & machine-local files (inside apps/mobile/android/)
 apps/mobile/android/.gradle/
