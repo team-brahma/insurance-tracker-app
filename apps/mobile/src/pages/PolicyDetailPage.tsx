@@ -48,6 +48,7 @@ import PageLoader from '@components/ui/PageLoader.js';
 import Dialog from '@components/ui/Dialog.js';
 import AlertDialog from '@components/ui/AlertDialog.js';
 import Button from '@components/ui/Button.js';
+import Badge from '@components/ui/Badge.js';
 import Input from '@components/ui/Input.js';
 import { cn } from '@utils/Cn.js';
 import { appConfig } from '@config/index.js';
@@ -319,9 +320,9 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
       ? `₹${Number(rawPremium).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : '';
     return resolveTemplate(WHATSAPP_TEMPLATE, {
-      insuredName: policy.client.insuredName,
+      insuredName: policy.insuredPersonName || policy.client.insuredName,
       policyType: policy.policyType.name,
-      showVehicleNumber: policy.policyType.name.toLowerCase() === 'motor',
+      showVehicleNumber: policy.policyType.name.toLowerCase() === 'motor' && !!policy.vehicleNumber,
       vehicleNumber: policy.vehicleNumber,
       policyNumber: policy.policyNumber,
       endDate: formatDate(policy.endDate),
@@ -520,13 +521,19 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                       avatarGradient,
                     )}
                   >
-                    {initials(policy.client.insuredName)}
+                    {initials(policy.insuredPersonName || policy.client.insuredName)}
                   </motion.div>
 
                   <div className="text-left min-w-0">
                     <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-ink leading-tight tracking-tight break-words">
-                      {policy.client.insuredName}
+                      {policy.insuredPersonName || policy.client.insuredName}
                     </h2>
+
+                    {policy.insuredPersonName && (
+                      <p className="text-xs text-ink-faint font-semibold mt-1">
+                        Client: {policy.client.insuredName} ({policy.client.mobileNumber})
+                      </p>
+                    )}
 
                     {/* Structured Info Badges */}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
@@ -614,7 +621,18 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                 </div>
 
                 <div className="space-y-0 divide-y divide-line">
-                  <DataRow label="Insured Name" value={policy.client.insuredName} />
+                  {policy.insuredPersonName ? (
+                    <>
+                      <DataRow label="Insured Person" value={policy.insuredPersonName} />
+                      <DataRow label="Contact Client" value={policy.client.insuredName} />
+                      <DataRow label="Relation" value={<Badge tone="pending">Associate</Badge>} />
+                    </>
+                  ) : (
+                    <>
+                      <DataRow label="Insured Person" value={policy.client.insuredName} />
+                      <DataRow label="Relation" value={<Badge tone="neutral">Self</Badge>} />
+                    </>
+                  )}
                   {policy.referenceNote && (
                     <DataRow
                       label="Reference Label"

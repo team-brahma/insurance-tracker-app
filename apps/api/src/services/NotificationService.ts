@@ -194,7 +194,7 @@ export async function runRenewalNotificationJob(
 
       summary.policyCandidates += 1;
 
-      const clientName = policy.client.insuredName;
+      const clientName = policy.insuredPersonName || policy.client.insuredName;
       const endDateStr = policy.endDate.toLocaleDateString('en-IN', {
         day: '2-digit',
         month: 'short',

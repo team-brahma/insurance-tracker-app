@@ -6,6 +6,7 @@ import { VALIDATION } from '@repo/constants';
 export interface RawRow {
   clientName: string;
   mobileNumber: string | null;
+  associate: string | null;
   policyTypeName: string;
   vehicleNumber: string | null;
   policyNumber: string | null;
@@ -19,6 +20,7 @@ export interface RowProcessStatus {
   rowNumber: number;
   clientName: string;
   mobileNumber: string | null;
+  associate: string | null;
   policyTypeName: string;
   vehicleNumber: string | null;
   policyNumber: string | null;
@@ -77,16 +79,24 @@ export function parseExcel(buffer: Buffer): RawRow[] {
     if (!nonEmpty) continue;
 
     const rawMobile = safeString(row[1]).trim();
+    const rawAssociate = safeString(row[2]).trim();
 
     result.push({
       clientName: safeString(row[0]).trim(),
       mobileNumber: rawMobile || null,
-      policyTypeName: safeString(row[2]).trim(),
-      vehicleNumber: safeString(row[3]).trim() || null,
-      policyNumber: safeString(row[4]).trim() || null,
-      endDate: row[5],
-      premiumPrice: safeNumber(row[6]),
-      referenceNote: safeString(row[7]).trim() || null,
+      associate: rawAssociate || null,
+      policyTypeName: safeString(row[3]).trim(),
+      vehicleNumber: (() => {
+        const val = safeString(row[4]).replace(/\s+/g, '');
+        return val.toUpperCase() === 'NEW' || val === '' ? null : val;
+      })(),
+      policyNumber: (() => {
+        const val = safeString(row[5]).replace(/\s+/g, '');
+        return val === '' ? null : val;
+      })(),
+      endDate: row[6],
+      premiumPrice: safeNumber(row[7]),
+      referenceNote: safeString(row[8]).trim() || null,
       rowNumber: i + 2,
     });
   }
@@ -231,6 +241,12 @@ export async function processBulkImport(
       rowErrors.push(`END DATE "${rawEndDateStr}" is not a valid date. Use DD/MM/YYYY format`);
     }
 
+    const formattedEndDate = parsedEndDate
+      ? `${String(parsedEndDate.getDate()).padStart(2, '0')}/${String(
+          parsedEndDate.getMonth() + 1,
+        ).padStart(2, '0')}/${String(parsedEndDate.getFullYear())}`
+      : rawEndDateStr;
+
     if (premiumPrice !== null && (isNaN(premiumPrice) || premiumPrice < 0)) {
       rowErrors.push(
         `PREMIUM PRICE "${String(row.premiumPrice)}" is invalid. Expected a positive number`,
@@ -253,10 +269,11 @@ export async function processBulkImport(
         rowNumber: row.rowNumber,
         clientName,
         mobileNumber,
+        associate: row.associate,
         policyTypeName,
         vehicleNumber,
         policyNumber,
-        endDate: rawEndDateStr,
+        endDate: formattedEndDate,
         premiumPrice,
         referenceNote,
         status: 'FAILED',
@@ -383,6 +400,7 @@ export async function processBulkImport(
             premiumPrice,
             referenceNote: referenceNote ?? null,
             renewalStatus: 'PENDING',
+            insuredPersonName: row.associate || null,
           },
           select: { id: true },
         });
@@ -415,10 +433,11 @@ export async function processBulkImport(
           rowNumber: row.rowNumber,
           clientName,
           mobileNumber,
+          associate: row.associate,
           policyTypeName,
           vehicleNumber,
           policyNumber,
-          endDate: rawEndDateStr,
+          endDate: formattedEndDate,
           premiumPrice,
           referenceNote,
           status: 'SKIPPED',
@@ -435,10 +454,11 @@ export async function processBulkImport(
           rowNumber: row.rowNumber,
           clientName,
           mobileNumber,
+          associate: row.associate,
           policyTypeName,
           vehicleNumber,
           policyNumber,
-          endDate: rawEndDateStr,
+          endDate: formattedEndDate,
           premiumPrice,
           referenceNote,
           status: 'SUCCESS',
@@ -452,10 +472,11 @@ export async function processBulkImport(
         rowNumber: row.rowNumber,
         clientName,
         mobileNumber,
+        associate: row.associate,
         policyTypeName,
         vehicleNumber,
         policyNumber,
-        endDate: rawEndDateStr,
+        endDate: formattedEndDate,
         premiumPrice,
         referenceNote,
         status: 'FAILED',

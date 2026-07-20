@@ -17,4 +17,5 @@ export interface EnquiryFormData {
   referredBy?: string | null;
   remindOn?: string | null;
   status?: EnquiryStatus;
+  vehicleNumber?: string | null;
 }

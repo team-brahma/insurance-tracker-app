@@ -100,6 +100,7 @@ model Policy {
   claimDate      DateTime?     @map("claim_date")
   claimAmount    Decimal?      @map("claim_amount")
   lastRemindedAt DateTime?     @map("last_reminded_at")
+  insuredPersonName String?     @map("insured_person_name")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
@@ -153,6 +154,7 @@ model Enquiry {
   name         String
   mobileNumber String        @map("mobile_number")
   policyTypeId String        @map("policy_type_id")
+  vehicleNumber String?       @map("vehicle_number")
   referredBy   String?       @map("referred_by")
   remindOn     DateTime?     @map("remind_on")
   status       EnquiryStatus @default(OPEN)

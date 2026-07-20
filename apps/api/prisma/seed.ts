@@ -93,6 +93,7 @@ async function main() {
     referredBy?: string;
     remindOn: Date | null;
     status: 'OPEN' | 'CONVERTED' | 'DROPPED';
+    vehicleNumber?: string;
   }) {
     return db.$transaction(async (tx) => {
       const enquiry = await tx.enquiry.create({ data });
@@ -284,6 +285,7 @@ async function main() {
       referredBy: 'Friend',
       remindOn: new Date('2026-08-01T00:00:00.000Z'),
       status: 'OPEN',
+      vehicleNumber: 'KA01AB1234',
     });
     await createEnquiryWithHistory({
       agentId: agentUser.id,

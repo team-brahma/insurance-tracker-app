@@ -108,6 +108,7 @@ export const enquiryRepository = {
       referredBy?: string | null;
       remindOn?: Date | null;
       status?: EnquiryStatus;
+      vehicleNumber?: string | null;
     },
   ) {
     const db = getDb();
@@ -121,6 +122,7 @@ export const enquiryRepository = {
           referredBy: data.referredBy ?? null,
           remindOn: data.remindOn ?? null,
           status: data.status ?? 'OPEN',
+          vehicleNumber: data.vehicleNumber ?? null,
         },
         include: { policyType: true },
       });

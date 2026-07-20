@@ -38,6 +38,7 @@ export const enquiryService = {
       referredBy?: string | null;
       remindOn?: string | null;
       status?: EnquiryStatus;
+      vehicleNumber?: string | null;
     },
   ) {
     if (!data.name) {
@@ -70,6 +71,7 @@ export const enquiryService = {
           referredBy: data.referredBy ?? null,
           remindOn,
           status: data.status ?? 'OPEN',
+          vehicleNumber: data.vehicleNumber ?? null,
         },
         agentId,
       );
@@ -82,6 +84,7 @@ export const enquiryService = {
       referredBy: data.referredBy ?? null,
       remindOn,
       status: data.status ?? 'OPEN',
+      vehicleNumber: data.vehicleNumber ?? null,
     });
   },
 
@@ -95,6 +98,7 @@ export const enquiryService = {
       referredBy?: string | null;
       remindOn?: string | null;
       status?: EnquiryStatus;
+      vehicleNumber?: string | null;
     },
   ) {
     await this.getById(agentId, id);
@@ -105,6 +109,7 @@ export const enquiryService = {
     if (data.policyType !== undefined) updateData.policyTypeId = data.policyType;
     if (data.referredBy !== undefined) updateData.referredBy = data.referredBy;
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.vehicleNumber !== undefined) updateData.vehicleNumber = data.vehicleNumber;
 
     if (data.remindOn !== undefined) {
       if (data.remindOn) {

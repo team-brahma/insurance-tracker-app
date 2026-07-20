@@ -30,6 +30,22 @@ import { daysToExpiry, formatDate, initials, urgencyBucket } from '@repo/utils';
 import { cn } from '@utils/Cn.js';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 
+interface UrgencyCounts {
+  overdue: number;
+  due7: number;
+  due30: number;
+  future: number;
+  all: number;
+}
+
+interface CustomMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  urgencyCounts?: UrgencyCounts;
+}
+
 const ALL_STATUSES = Object.keys(RENEWAL_STATUS_LABELS);
 
 function daysLabel(days: number): string {
@@ -139,7 +155,7 @@ export default function PolicyListPage() {
 
   const { searchText, debouncedSearchText, setSearchText, clearSearch } = useSearch();
   const { data: policyTypesRes } = usePolicyTypesQuery();
-  const policyTypes = policyTypesRes?.data ?? [];
+  const policyTypes = useMemo(() => policyTypesRes?.data ?? [], [policyTypesRes]);
   const allTypeIds = useMemo(() => policyTypes.map((t) => t.id), [policyTypes]);
 
   const [activeUrgency, setActiveUrgency] = useState<UrgencyBucket | null>(null);
@@ -196,7 +212,7 @@ export default function PolicyListPage() {
 
   const allPolicies = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
 
-  const firstPageMeta = data?.pages[0]?.meta as any;
+  const firstPageMeta = data?.pages[0]?.meta as CustomMeta | undefined;
   const counts = useMemo(() => {
     return {
       overdue: firstPageMeta?.urgencyCounts?.overdue ?? 0,
@@ -414,14 +430,14 @@ export default function PolicyListPage() {
                           <div
                             className={cn(
                               'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
-                              getInitialsColor(policy.client.insuredName),
+                              getInitialsColor(policy.insuredPersonName || policy.client.insuredName),
                             )}
                           >
-                            {initials(policy.client.insuredName)}
+                            {initials(policy.insuredPersonName || policy.client.insuredName)}
                           </div>
                           <div className="min-w-0 flex-1">
                             <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
-                              {policy.client.insuredName}
+                              {policy.insuredPersonName || policy.client.insuredName}
                             </h3>
                             <p
                               className={cn(
@@ -492,7 +508,7 @@ export default function PolicyListPage() {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.open(`tel:${policy.client.mobileNumber ?? ''}`);
+                                  window.open(`tel:${policy.client.mobileNumber}`);
                                 }}
                                 title="Call client"
                                 className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
@@ -565,7 +581,7 @@ export default function PolicyListPage() {
             label="Policy type"
             items={allTypeIds}
             selected={tempFilterTypes}
-            getLabel={(v) => policyTypes.find((t) => t.id === v)?.name || v}
+            getLabel={(v) => policyTypes.find((t) => t.id === v)?.name ?? v}
             onToggle={(v) => {
               setTempFilterTypes((prev) =>
                 prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],

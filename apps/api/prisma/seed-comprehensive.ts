@@ -107,6 +107,7 @@ async function main() {
     referredBy: string;
     remindOn: Date | null;
     status: 'OPEN' | 'CONVERTED' | 'DROPPED';
+    vehicleNumber?: string;
   }) {
     return db.$transaction(async (tx) => {
       const enquiry = await tx.enquiry.create({ data });
@@ -558,6 +559,7 @@ async function main() {
       referredBy: 'Friend',
       remindOn: daysFromNow(10),
       status: 'OPEN',
+      vehicleNumber: 'KA01AB1234',
     },
     {
       name: 'Sunita Rao',
@@ -566,6 +568,7 @@ async function main() {
       referredBy: 'Google Search',
       remindOn: daysFromNow(5),
       status: 'OPEN',
+      vehicleNumber: undefined as string | undefined,
     },
     {
       name: 'Karan Malhotra',
@@ -574,6 +577,7 @@ async function main() {
       referredBy: 'Existing Customer',
       remindOn: null,
       status: 'DROPPED',
+      vehicleNumber: undefined as string | undefined,
     },
     {
       name: 'Pooja Hegde',
@@ -582,6 +586,7 @@ async function main() {
       referredBy: 'Walk-in',
       remindOn: daysAgo(2),
       status: 'CONVERTED',
+      vehicleNumber: 'MH12CD5678',
     },
   ];
 
@@ -599,6 +604,7 @@ async function main() {
         referredBy: e.referredBy,
         remindOn: e.remindOn,
         status: e.status as 'OPEN' | 'CONVERTED' | 'DROPPED',
+        vehicleNumber: e.vehicleNumber,
       });
       enquiriesCreated++;
     }

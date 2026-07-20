@@ -10,6 +10,12 @@ export const createEnquirySchema = z.object({
   referredBy: z.string().nullish(),
   remindOn: z.string().nullish(),
   status: z.string().nullish(),
+  vehicleNumber: z
+    .string()
+    .refine((v) => v === '' || VALIDATION.VEHICLE_NUMBER.test(v.trim().toUpperCase()), {
+      message: VALIDATION_ERRORS.VEHICLE_NUMBER,
+    })
+    .nullish(),
 });
 
 export const updateEnquirySchema = z.object({
@@ -26,6 +32,12 @@ export const updateEnquirySchema = z.object({
   referredBy: z.string().nullish(),
   remindOn: z.string().nullish(),
   status: z.string().nullish(),
+  vehicleNumber: z
+    .string()
+    .refine((v) => v === '' || VALIDATION.VEHICLE_NUMBER.test(v.trim().toUpperCase()), {
+      message: VALIDATION_ERRORS.VEHICLE_NUMBER,
+    })
+    .nullish(),
 });
 
 export const updateEnquiryStatusSchema = z.object({

@@ -73,6 +73,7 @@ export const policyController = {
     if (body.paymentLink != null) data.paymentLink = body.paymentLink;
     if (body.renewalNotice != null) data.renewalNotice = body.renewalNotice;
     if (body.additionalNotice != null) data.additionalNotice = body.additionalNotice;
+    if (body.insuredPersonName !== undefined) data.insuredPersonName = body.insuredPersonName || null;
     if (body.isClaimed != null) data.isClaimed = body.isClaimed;
     if (body.claimDate != null) data.claimDate = body.claimDate;
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;
@@ -110,6 +111,7 @@ export const policyController = {
     if (body.paymentLink != null) data.paymentLink = body.paymentLink;
     if (body.renewalNotice != null) data.renewalNotice = body.renewalNotice;
     if (body.additionalNotice != null) data.additionalNotice = body.additionalNotice;
+    if (body.insuredPersonName !== undefined) data.insuredPersonName = body.insuredPersonName || null;
     if (body.isClaimed != null) data.isClaimed = body.isClaimed;
     if (body.claimDate != null) data.claimDate = body.claimDate;
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;

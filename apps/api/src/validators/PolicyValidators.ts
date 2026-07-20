@@ -8,6 +8,12 @@ export const createPolicySchema = z.object({
     .string()
     .min(1, 'Insured name is required')
     .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+  insuredPersonName: z
+    .string()
+    .refine((v) => v === '' || VALIDATION.NAME.test(v), {
+      message: VALIDATION_ERRORS.NAME,
+    })
+    .nullish(),
   endDate: z.string().min(1, 'End date is required'),
   policyType: z.string().min(1, 'Policy type is required'),
   mobileNumber: z
@@ -19,16 +25,18 @@ export const createPolicySchema = z.object({
   referenceNote: z.string().nullish(),
   vehicleNumber: z
     .string()
-    .refine((v) => v === '' || VALIDATION.VEHICLE_NUMBER.test(v.trim().toUpperCase()), {
+    .nullish()
+    .transform((v) => (v ? v.replace(/\s+/g, '') : v))
+    .refine((v) => v == null || v === '' || VALIDATION.VEHICLE_NUMBER.test(v.toUpperCase()), {
       message: VALIDATION_ERRORS.VEHICLE_NUMBER,
-    })
-    .nullish(),
+    }),
   policyNumber: z
     .string()
-    .refine((v) => v === '' || VALIDATION.POLICY_NUMBER.test(v), {
+    .nullish()
+    .transform((v) => (v ? v.replace(/\s+/g, '') : v))
+    .refine((v) => v == null || v === '' || VALIDATION.POLICY_NUMBER.test(v), {
       message: VALIDATION_ERRORS.POLICY_NUMBER,
-    })
-    .nullish(),
+    }),
   typeNote: z.string().nullish(),
   renewalStatus: z.string().nullish(),
   premiumPrice: z.number().nullish(),
@@ -54,6 +62,12 @@ export const updatePolicySchema = z.object({
     .min(1, 'Insured name is required')
     .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME)
     .nullish(),
+  insuredPersonName: z
+    .string()
+    .refine((v) => v === '' || VALIDATION.NAME.test(v), {
+      message: VALIDATION_ERRORS.NAME,
+    })
+    .nullish(),
   endDate: z.string().min(1, 'End date is required').nullish(),
   policyType: z.string().min(1, 'Policy type is required').nullish(),
   mobileNumber: z
@@ -65,16 +79,18 @@ export const updatePolicySchema = z.object({
   referenceNote: z.string().nullish(),
   vehicleNumber: z
     .string()
-    .refine((v) => v === '' || VALIDATION.VEHICLE_NUMBER.test(v.trim().toUpperCase()), {
+    .nullish()
+    .transform((v) => (v ? v.replace(/\s+/g, '') : v))
+    .refine((v) => v == null || v === '' || VALIDATION.VEHICLE_NUMBER.test(v.toUpperCase()), {
       message: VALIDATION_ERRORS.VEHICLE_NUMBER,
-    })
-    .nullish(),
+    }),
   policyNumber: z
     .string()
-    .refine((v) => v === '' || VALIDATION.POLICY_NUMBER.test(v), {
+    .nullish()
+    .transform((v) => (v ? v.replace(/\s+/g, '') : v))
+    .refine((v) => v == null || v === '' || VALIDATION.POLICY_NUMBER.test(v), {
       message: VALIDATION_ERRORS.POLICY_NUMBER,
-    })
-    .nullish(),
+    }),
   typeNote: z.string().nullish(),
   renewalStatus: z.string().nullish(),
   premiumPrice: z.number().nullish(),

@@ -86,6 +86,7 @@ export interface Policy extends BaseEntity {
   claimDate: string | null;
   claimAmount: number | null;
   lastRemindedAt: string | null;
+  insuredPersonName: string | null;
 }
 
 export interface PolicyWithClient extends Policy {
@@ -139,6 +140,7 @@ export interface CreatePolicyDto {
   isClaimed?: boolean;
   claimDate?: string | null;
   claimAmount?: number | null;
+  insuredPersonName?: string | null;
 }
 
 export type UpdatePolicyDto = Partial<CreatePolicyDto>;
@@ -212,6 +214,7 @@ export interface Enquiry extends BaseEntity {
   dropReason: DropReason | null;
   dropNote: string | null;
   droppedAt: string | null;
+  vehicleNumber: string | null;
 }
 
 export interface CreateEnquiryDto {
@@ -221,6 +224,7 @@ export interface CreateEnquiryDto {
   referredBy?: string | null;
   remindOn?: string | null;
   status?: EnquiryStatus;
+  vehicleNumber?: string | null;
 }
 
 export interface PolicyStatusHistory extends BaseEntity {

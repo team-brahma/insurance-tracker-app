@@ -20,33 +20,48 @@ import Input from '@components/ui/Input.js';
 import Select from '@components/ui/Select.js';
 import { cn } from '@utils/Cn.js';
 
-const enquirySchema = z.object({
-  name: z.string().min(1, 'Name is required').regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
-  mobileNumber: z
-    .string()
-    .min(1, 'Mobile number is required')
-    .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE),
-  policyType: z.string().min(1, 'Policy type is required'),
-  referredBy: z.string().optional(),
-  remindOn: z
-    .string()
-    .optional()
+const getEnquirySchema = (policyTypes: { id: string; name: string }[]) => {
+  const motorPolicyType = policyTypes.find((t) => t.name.toUpperCase() === 'MOTOR');
+  const motorId = motorPolicyType?.id || 'MOTOR';
+  return z
+    .object({
+      name: z.string().min(1, 'Name is required').regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+      mobileNumber: z
+        .string()
+        .min(1, 'Mobile number is required')
+        .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE),
+      policyType: z.string().min(1, 'Policy type is required'),
+      vehicleNumber: z.string().optional(),
+      referredBy: z.string().optional(),
+      remindOn: z
+        .string()
+        .optional()
+        .refine(
+          (val) => {
+            if (!val) return true;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dateVal = new Date(val);
+            dateVal.setHours(0, 0, 0, 0);
+            return dateVal >= today;
+          },
+          { message: 'Date cannot be in the past' },
+        ),
+      remindTime: z.string().optional(),
+      status: z.string().optional(),
+    })
     .refine(
-      (val) => {
-        if (!val) return true;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dateVal = new Date(val);
-        dateVal.setHours(0, 0, 0, 0);
-        return dateVal >= today;
-      },
-      { message: 'Date cannot be in the past' },
-    ),
-  remindTime: z.string().optional(),
-  status: z.string().optional(),
-});
+      (data) =>
+        !(
+          data.policyType === motorId &&
+          data.vehicleNumber?.trim() &&
+          !VALIDATION.VEHICLE_NUMBER.test(data.vehicleNumber.trim().toUpperCase())
+        ),
+      { message: VALIDATION_ERRORS.VEHICLE_NUMBER, path: ['vehicleNumber'] },
+    );
+};
 
-type FormValues = z.infer<typeof enquirySchema>;
+type FormValues = z.infer<ReturnType<typeof getEnquirySchema>>;
 
 // Dynamic options loaded from API inside component
 
@@ -152,6 +167,7 @@ export default function EnquiryFormPage() {
         remindOn: remindOnDate,
         remindTime: remindOnTime,
         status: existing.status,
+        vehicleNumber: existing.vehicleNumber ?? '',
       };
     }
     return {
@@ -162,8 +178,11 @@ export default function EnquiryFormPage() {
       remindOn: '',
       remindTime: '09:30',
       status: 'OPEN',
+      vehicleNumber: '',
     };
   }, [existing]);
+
+  const schema = useMemo(() => getEnquirySchema(policyTypes), [policyTypes]);
 
   const {
     register,
@@ -174,7 +193,7 @@ export default function EnquiryFormPage() {
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(enquirySchema),
+    resolver: zodResolver(schema),
     defaultValues,
   });
 
@@ -203,6 +222,7 @@ export default function EnquiryFormPage() {
         remindOn: remindOnDate,
         remindTime: remindOnTime,
         status: existing.status,
+        vehicleNumber: existing.vehicleNumber ?? '',
       });
     } else if (!isEdit) {
       reset({
@@ -213,6 +233,7 @@ export default function EnquiryFormPage() {
         remindOn: '',
         remindTime: '09:30',
         status: 'OPEN',
+        vehicleNumber: '',
       });
     }
   }, [existing, isEdit, reset]);
@@ -231,11 +252,14 @@ export default function EnquiryFormPage() {
   const watchPolicyType = watch('policyType');
   const watchRemindOn = watch('remindOn');
   const watchRemindTime = watch('remindTime');
+  const watchVehicleNumber = watch('vehicleNumber') || '';
 
   const previewInitials = watchName ? initials(watchName) : '??';
   const previewStatus = existing?.status ?? 'OPEN';
   const colors = isEdit ? statusColors(previewStatus) : null;
-  const previewPolicyTypeName = policyTypes.find((t) => t.id === watchPolicyType)?.name ?? '';
+  const selectedPolicyTypeObj = policyTypes.find((t) => t.id === watchPolicyType);
+  const previewPolicyTypeName = selectedPolicyTypeObj?.name ?? '';
+  const isMotor = selectedPolicyTypeObj?.name.toUpperCase() === 'MOTOR';
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -250,6 +274,9 @@ export default function EnquiryFormPage() {
         }
       }
 
+      const watchPolicyTypeObj = policyTypes.find((t) => t.id === values.policyType);
+      const isMotorVal = watchPolicyTypeObj?.name.toUpperCase() === 'MOTOR';
+
       const digits = values.mobileNumber.replace(/\D/g, '');
       const payload = {
         name: values.name,
@@ -257,6 +284,7 @@ export default function EnquiryFormPage() {
         policyType: values.policyType,
         referredBy: values.referredBy ?? null,
         remindOn: remindOnISO,
+        vehicleNumber: isMotorVal ? values.vehicleNumber || null : null,
       };
 
       if (isEdit && id) {
@@ -357,6 +385,12 @@ export default function EnquiryFormPage() {
                             {previewPolicyTypeName}
                           </span>
                         )}
+
+                        {isMotor && watchVehicleNumber && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-line bg-surface/50 text-ink-soft backdrop-blur-sm shadow-sm font-mono uppercase">
+                            {watchVehicleNumber}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -426,6 +460,12 @@ export default function EnquiryFormPage() {
                         {previewPolicyTypeName && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-line bg-surface/50 text-ink-soft backdrop-blur-sm shadow-sm">
                             {previewPolicyTypeName}
+                          </span>
+                        )}
+
+                        {isMotor && watchVehicleNumber && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-line bg-surface/50 text-ink-soft backdrop-blur-sm shadow-sm font-mono uppercase">
+                            {watchVehicleNumber}
                           </span>
                         )}
 
@@ -508,6 +548,15 @@ export default function EnquiryFormPage() {
                 />
               )}
             />
+
+            {isMotor && (
+              <Input
+                label="Vehicle Number"
+                placeholder="e.g. MH12AB1234"
+                error={errors.vehicleNumber?.message}
+                {...register('vehicleNumber')}
+              />
+            )}
 
             <Input
               label="Referred By"

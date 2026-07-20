@@ -42,7 +42,7 @@ import Input from '@components/ui/Input.js';
 import Select from '@components/ui/Select.js';
 import { cn } from '@utils/Cn.js';
 
-const getPolicySchema = (policyTypes: { id: string; name: string }[], hasClientId: boolean) => {
+const getPolicySchema = (policyTypes: { id: string; name: string }[], hasClientId: boolean, isAssociate: boolean) => {
   const motorPolicyType = policyTypes.find((t) => t.name.toUpperCase() === 'MOTOR');
   const motorId = motorPolicyType?.id || 'MOTOR';
   const mobileValidation = hasClientId
@@ -60,6 +60,12 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], hasClientI
         .string()
         .min(1, 'Insured name is required')
         .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+      insuredPersonName: isAssociate
+        ? z
+            .string()
+            .min(1, 'Insured person name is required')
+            .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME)
+        : z.string().optional(),
       mobileNumber: mobileValidation,
       referenceNote: z.string(),
       policyType: z.string().min(1, 'Policy type is required'),
@@ -89,10 +95,6 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], hasClientI
       isClaimed: z.boolean(),
       claimDate: z.string(),
       claimAmount: z.string(),
-    })
-    .refine((data) => !(data.policyType === motorId && !data.vehicleNumber.trim()), {
-      message: 'Vehicle number is required for motor policies',
-      path: ['vehicleNumber'],
     })
     .refine(
       (data) =>
@@ -206,9 +208,11 @@ export default function PolicyFormPage() {
   const policyTypes = policyTypesRes?.data ?? [];
   const typeOptions = policyTypes.map((t) => ({ value: t.id, label: t.name }));
 
+  const [isAssociate, setIsAssociate] = useState(false);
+
   const schema = useMemo(
-    () => getPolicySchema(policyTypes, !!selectedClientId),
-    [policyTypes, selectedClientId],
+    () => getPolicySchema(policyTypes, !!selectedClientId, isAssociate),
+    [policyTypes, selectedClientId, isAssociate],
   );
 
   const {
@@ -225,6 +229,7 @@ export default function PolicyFormPage() {
     defaultValues: {
       insuredName: '',
       mobileNumber: '',
+      insuredPersonName: '',
       referenceNote: '',
       policyType: '',
       vehicleNumber: '',
@@ -260,11 +265,11 @@ export default function PolicyFormPage() {
 
   // Weighted progress calculation for Add Mode
   const requiredFields = ['insuredName', 'policyType', 'endDate', 'policyNumber'];
-  if (isMotor) requiredFields.push('vehicleNumber');
 
   const optionalFields = [
     'mobileNumber',
     'referenceNote',
+    'vehicleNumber',
     'premiumPrice',
     'paymentLink',
     'renewalNotice',
@@ -356,11 +361,13 @@ export default function PolicyFormPage() {
   useEffect(() => {
     if (existing) {
       if (existing.renewalNotice) setPdfFileName('Renewal notice PDF uploaded');
+      setIsAssociate(!!existing.insuredPersonName);
       reset({
         insuredName: existing.client.insuredName,
         mobileNumber: existing.client.mobileNumber
           ? existing.client.mobileNumber.replace('+91', '')
           : '',
+        insuredPersonName: existing.insuredPersonName ?? '',
         referenceNote: existing.referenceNote ?? '',
         policyType: existing.policyType.id,
         vehicleNumber: existing.vehicleNumber ?? '',
@@ -378,12 +385,14 @@ export default function PolicyFormPage() {
       // Populate name/mobile from found client if available, otherwise from enquiry
       const clientName = foundClient?.insuredName ?? enquiry.name;
       const clientMobile = foundClient?.mobileNumber ?? enquiry.mobileNumber;
+      setIsAssociate(false);
       reset({
         insuredName: clientName,
         mobileNumber: clientMobile.replace('+91', ''),
+        insuredPersonName: '',
         referenceNote: enquiry.referredBy ? `Referred by: ${enquiry.referredBy}` : '',
         policyType: enquiry.policyTypeId,
-        vehicleNumber: '',
+        vehicleNumber: enquiry.vehicleNumber ?? '',
         policyNumber: '',
         endDate: '',
         premiumPrice: '',
@@ -395,9 +404,11 @@ export default function PolicyFormPage() {
         claimAmount: '',
       });
     } else if (!isEdit && !enquiry) {
+      setIsAssociate(false);
       reset({
         insuredName: '',
         mobileNumber: '',
+        insuredPersonName: '',
         referenceNote: '',
         policyType: '',
         vehicleNumber: '',
@@ -532,6 +543,11 @@ export default function PolicyFormPage() {
     };
     if (selectedClientId) payload.clientId = selectedClientId;
     if (mn) payload.mobileNumber = `+91${mn.replace(/\D/g, '').slice(-10)}`;
+    if (isAssociate && form.insuredPersonName?.trim()) {
+      payload.insuredPersonName = form.insuredPersonName.trim();
+    } else {
+      payload.insuredPersonName = null;
+    }
     if (form.referenceNote.trim()) payload.referenceNote = form.referenceNote.trim();
     if (isMotor) payload.vehicleNumber = form.vehicleNumber.trim().toUpperCase();
     if (form.policyNumber.trim()) payload.policyNumber = form.policyNumber.trim();
@@ -855,6 +871,56 @@ export default function PolicyFormPage() {
                         {...register('mobileNumber')}
                       />
                     </div>
+
+                    {/* Insured Person Selection */}
+                    <div className="space-y-5 bg-surface border border-line p-5 sm:p-6 rounded-2xl shadow-sm text-left">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-line">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/45 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40 shrink-0">
+                          <User size={13} />
+                        </div>
+                        <h3 className="text-xs font-bold text-ink leading-none">
+                          Insured Target
+                        </h3>
+                      </div>
+
+                      <div className="flex gap-6">
+                        <label className="flex items-center gap-2 text-sm font-medium text-ink cursor-pointer">
+                          <input
+                            type="radio"
+                            name="insured_type"
+                            checked={!isAssociate}
+                            onChange={() => {
+                              setIsAssociate(false);
+                              setValue('insuredPersonName', '');
+                            }}
+                            className="w-4 h-4 text-indigo-600 border-line-strong focus:ring-indigo-500"
+                          />
+                          <span>Self (Policyholder)</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-medium text-ink cursor-pointer">
+                          <input
+                            type="radio"
+                            name="insured_type"
+                            checked={isAssociate}
+                            onChange={() => {
+                              setIsAssociate(true);
+                            }}
+                            className="w-4 h-4 text-indigo-600 border-line-strong focus:ring-indigo-500"
+                          />
+                          <span>Associate (Family Member)</span>
+                        </label>
+                      </div>
+
+                      {isAssociate && (
+                        <Input
+                          label="Insured Person Name"
+                          placeholder="e.g. Jane Doe (Wife)"
+                          required
+                          error={errors.insuredPersonName?.message}
+                          {...register('insuredPersonName')}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* Policy Information */}
@@ -887,7 +953,6 @@ export default function PolicyFormPage() {
                       <Input
                         label="Vehicle Number"
                         placeholder="e.g. MH12AB1234"
-                        required
                         error={errors.vehicleNumber?.message}
                         {...register('vehicleNumber')}
                       />

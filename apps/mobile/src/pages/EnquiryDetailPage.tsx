@@ -386,6 +386,12 @@ export default function EnquiryDetailPage() {
                     }
                   />
                   <DataRow label="Policy Type" value={policyType} />
+                  {policyType.toUpperCase() === 'MOTOR' && enquiry.vehicleNumber && (
+                    <DataRow
+                      label="Vehicle Number"
+                      value={<span className="font-mono uppercase">{enquiry.vehicleNumber}</span>}
+                    />
+                  )}
                   <DataRow
                     label="Status"
                     value={ENQUIRY_STATUS_LABELS[enquiry.status] ?? enquiry.status}

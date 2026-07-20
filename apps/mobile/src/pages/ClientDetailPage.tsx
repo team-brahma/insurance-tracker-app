@@ -305,6 +305,7 @@ export default function ClientDetailPage() {
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-xs font-bold text-ink truncate">
                                   {policy.policyType?.name ?? '—'}
+                                  {policy.insuredPersonName && ` (${policy.insuredPersonName})`}
                                 </span>
                                 <Badge
                                   tone={statusTone(policy.renewalStatus)}

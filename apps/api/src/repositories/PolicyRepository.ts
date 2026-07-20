@@ -25,6 +25,7 @@ export const policyRepository = {
       AND.push({
         OR: [
           { client: { insuredName: { contains: filters.search } } },
+          { insuredPersonName: { contains: filters.search } },
           { vehicleNumber: { contains: filters.search } },
           { policyNumber: { contains: filters.search } },
         ],
@@ -102,21 +103,26 @@ export const policyRepository = {
       return queryWhere;
     };
 
-    const [data, total, totalMatching, overdueCount, due7Count, due30Count, futureCount] = await Promise.all([
-      db.policy.findMany({
-        where,
-        include: { client: true, policyType: true },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      db.policy.count({ where }),
-      db.policy.count({ where: baseWhereForUrgency }),
-      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { lt: today } }) }),
-      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due7Date } }) }),
-      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due30Date } }) }),
-      db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gt: due30Date } }) }),
-    ]);
+    const [data, total, totalMatching, overdueCount, due7Count, due30Count, futureCount] =
+      await Promise.all([
+        db.policy.findMany({
+          where,
+          include: { client: true, policyType: true },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        db.policy.count({ where }),
+        db.policy.count({ where: baseWhereForUrgency }),
+        db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { lt: today } }) }),
+        db.policy.count({
+          where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due7Date } }),
+        }),
+        db.policy.count({
+          where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due30Date } }),
+        }),
+        db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gt: due30Date } }) }),
+      ]);
 
     return {
       data,
@@ -170,6 +176,7 @@ export const policyRepository = {
       isClaimed?: boolean;
       claimDate?: Date | null;
       claimAmount?: number | null;
+      insuredPersonName?: string | null;
     },
   ) {
     const db = getDb();
@@ -192,6 +199,7 @@ export const policyRepository = {
           isClaimed: data.isClaimed ?? false,
           claimDate: data.claimDate ?? null,
           claimAmount: data.claimAmount ?? null,
+          insuredPersonName: data.insuredPersonName ?? null,
         },
         include: { client: true, policyType: true },
       });

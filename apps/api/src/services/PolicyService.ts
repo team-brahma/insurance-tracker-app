@@ -56,6 +56,7 @@ export const policyService = {
       isClaimed?: boolean;
       claimDate?: string | null;
       claimAmount?: number | null;
+      insuredPersonName?: string | null;
     },
   ) {
     let client: { id: string; insuredName: string; mobileNumber: string | null } | null;
@@ -98,6 +99,7 @@ export const policyService = {
     if (data.paymentLink !== undefined) createData.paymentLink = data.paymentLink;
     if (data.renewalNotice !== undefined) createData.renewalNotice = data.renewalNotice;
     if (data.additionalNotice !== undefined) createData.additionalNotice = data.additionalNotice;
+    if (data.insuredPersonName !== undefined) createData.insuredPersonName = data.insuredPersonName;
     if (data.isClaimed !== undefined) createData.isClaimed = data.isClaimed;
     if (data.claimDate !== undefined && data.claimDate !== null) {
       const claimDate = new Date(data.claimDate.slice(0, 10) + 'T00:00:00.000Z');
@@ -141,6 +143,7 @@ export const policyService = {
       isClaimed?: boolean;
       claimDate?: string | null;
       claimAmount?: number | null;
+      insuredPersonName?: string | null;
     },
   ) {
     const existing = await this.getById(agentId, id);
@@ -163,6 +166,7 @@ export const policyService = {
     if (data.paymentLink !== undefined) updateData.paymentLink = data.paymentLink;
     if (data.renewalNotice !== undefined) updateData.renewalNotice = data.renewalNotice;
     if (data.additionalNotice !== undefined) updateData.additionalNotice = data.additionalNotice;
+    if (data.insuredPersonName !== undefined) updateData.insuredPersonName = data.insuredPersonName;
     if (data.isClaimed !== undefined) updateData.isClaimed = data.isClaimed;
     if (data.claimDate !== undefined && data.claimDate !== null) {
       const claimDate = new Date(data.claimDate.slice(0, 10) + 'T00:00:00.000Z');
