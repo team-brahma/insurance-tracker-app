@@ -54,7 +54,9 @@ export const bulkImportController = {
 
   async exportReport(request: FastifyRequest, reply: FastifyReply) {
     assertAuthenticated(request);
-    const { rowStatuses } = request.body as { rowStatuses: any[] };
+    const { rowStatuses } = request.body as {
+      rowStatuses: Parameters<typeof generateReportExcel>[0];
+    };
     const buffer = generateReportExcel(rowStatuses);
     return reply
       .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

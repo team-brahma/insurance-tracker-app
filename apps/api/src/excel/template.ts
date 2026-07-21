@@ -34,7 +34,22 @@ export function generateTemplate(): Buffer {
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
 }
 
-export function generateReportExcel(rowStatuses: any[]): Buffer {
+export function generateReportExcel(
+  rowStatuses: {
+    rowNumber: number;
+    clientName: string | null;
+    mobileNumber: string | null;
+    associate: string | null;
+    policyTypeName: string;
+    vehicleNumber: string | null;
+    policyNumber: string | null;
+    endDate: string;
+    premiumPrice: number | null;
+    referenceNote: string | null;
+    status: string;
+    reason: string | null;
+  }[],
+): Buffer {
   const headers = [
     'Row Number',
     'Client Name',
@@ -52,17 +67,17 @@ export function generateReportExcel(rowStatuses: any[]): Buffer {
 
   const rows = rowStatuses.map((row) => [
     row.rowNumber,
-    row.clientName || '',
-    row.mobileNumber || '',
-    row.associate || '',
-    row.policyTypeName || '',
-    row.vehicleNumber || '',
-    row.policyNumber || '',
-    row.endDate || '',
-    row.premiumPrice !== null ? row.premiumPrice : '',
-    row.referenceNote || '',
+    row.clientName ?? '',
+    row.mobileNumber ?? '',
+    row.associate ?? '',
+    row.policyTypeName,
+    row.vehicleNumber ?? '',
+    row.policyNumber ?? '',
+    row.endDate,
+    row.premiumPrice ?? '',
+    row.referenceNote ?? '',
     row.status,
-    row.reason || '',
+    row.reason ?? '',
   ]);
 
   const wb = XLSX.utils.book_new();

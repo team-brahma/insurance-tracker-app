@@ -190,7 +190,7 @@ export async function processBulkImport(
     } else {
       const nameRegex = /^[a-zA-Z\s.'-]+$/;
       if (!nameRegex.test(clientName)) {
-        const invalidChars = Array.from(new Set(clientName.match(/[^a-zA-Z\s.'-]/g) || []));
+        const invalidChars = Array.from(new Set(clientName.match(/[^a-zA-Z\s.'-]/g) ?? []));
         const charList = invalidChars.map((c) => `"${c}"`).join(', ');
         rowErrors.push(
           `CLIENT NAME "${clientName}" contains invalid characters: ${charList}. (Only letters, spaces, dots, hyphens, and apostrophes are allowed)`,
@@ -228,7 +228,7 @@ export async function processBulkImport(
     if (policyNumber) {
       const policyNoRegex = /^[a-zA-Z0-9/-]+$/;
       if (!policyNoRegex.test(policyNumber)) {
-        const invalidChars = Array.from(new Set(policyNumber.match(/[^a-zA-Z0-9/-]/g) || []));
+        const invalidChars = Array.from(new Set(policyNumber.match(/[^a-zA-Z0-9/-]/g) ?? []));
         const charList = invalidChars.map((c) => `"${c}"`).join(', ');
         rowErrors.push(
           `POLICY NUMBER "${policyNumber}" contains invalid characters: ${charList}. (Only letters, numbers, hyphens, and slashes are allowed)`,
@@ -400,7 +400,7 @@ export async function processBulkImport(
             premiumPrice,
             referenceNote: referenceNote ?? null,
             renewalStatus: 'PENDING',
-            insuredPersonName: row.associate || null,
+            insuredPersonName: row.associate ?? null,
           },
           select: { id: true },
         });
