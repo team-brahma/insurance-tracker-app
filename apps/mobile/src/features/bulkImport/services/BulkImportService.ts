@@ -9,6 +9,18 @@ export const bulkImportService = {
     return data;
   },
 
+  /** Dry-run: validates the file and returns row-level results without writing to the DB. */
+  async previewFile(file: File): Promise<BulkImportResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await httpClient.post<BulkImportResponse>('/api/v1/bulk/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+    return data;
+  },
+
+  /** Real import: validates and commits all rows to the DB. */
   async uploadFile(file: File): Promise<BulkImportResponse> {
     const formData = new FormData();
     formData.append('file', file);
@@ -23,9 +35,7 @@ export const bulkImportService = {
     const { data } = await httpClient.post<Blob>(
       '/api/v1/bulk/export-report',
       { rowStatuses },
-      {
-        responseType: 'blob',
-      },
+      { responseType: 'blob' },
     );
     return data;
   },

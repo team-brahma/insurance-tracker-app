@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { VALIDATION, VALIDATION_ERRORS } from '@repo/constants';
+import { VALIDATION, VALIDATION_ERRORS, isAuthenticPolicyNumber } from '@repo/constants';
 
 const base64PdfRegex = /^(?:data:application\/pdf;base64,)?[A-Za-z0-9+/]+=*$/;
 
@@ -32,9 +32,9 @@ export const createPolicySchema = z.object({
     }),
   policyNumber: z
     .string()
-    .nullish()
+    .min(1, 'Policy number is required')
     .transform((v) => (v ? v.replace(/\s+/g, '') : v))
-    .refine((v) => v == null || v === '' || VALIDATION.POLICY_NUMBER.test(v), {
+    .refine((v) => isAuthenticPolicyNumber(v), {
       message: VALIDATION_ERRORS.POLICY_NUMBER,
     }),
   typeNote: z.string().nullish(),
@@ -88,7 +88,7 @@ export const updatePolicySchema = z.object({
     .string()
     .nullish()
     .transform((v) => (v ? v.replace(/\s+/g, '') : v))
-    .refine((v) => v == null || v === '' || VALIDATION.POLICY_NUMBER.test(v), {
+    .refine((v) => v == null || v === '' || isAuthenticPolicyNumber(v), {
       message: VALIDATION_ERRORS.POLICY_NUMBER,
     }),
   typeNote: z.string().nullish(),

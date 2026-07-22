@@ -6,6 +6,10 @@ const bulkRoutes: FastifyPluginAsync = async (fastify) => {
     return bulkImportController.downloadTemplate(request, reply);
   });
 
+  fastify.post('/preview', async (request: FastifyRequest, reply: FastifyReply) => {
+    return bulkImportController.previewImport(request, reply);
+  });
+
   fastify.post('/import', async (request: FastifyRequest, reply: FastifyReply) => {
     return bulkImportController.uploadAndImport(request, reply);
   });

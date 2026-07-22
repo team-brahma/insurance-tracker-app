@@ -30,7 +30,7 @@ import {
 } from '@features/policies/hooks/usePoliciesQuery.js';
 import { useEnquiryQuery } from '@features/enquiries/hooks/useEnquiriesQuery.js';
 import { useFindClientQuery } from '@features/policies/hooks/useClientsSearchQuery.js';
-import { RENEWAL_STATUS_LABELS, VALIDATION, VALIDATION_ERRORS } from '@repo/constants';
+import { RENEWAL_STATUS_LABELS, VALIDATION, VALIDATION_ERRORS, isAuthenticPolicyNumber } from '@repo/constants';
 import { usePolicyTypesQuery } from '@features/policyTypes/index.js';
 import { daysToExpiry, formatDate, initials, urgencyBucket, daysLabel } from '@repo/utils';
 import type { PolicyFormData } from '@features/policies/types/index.js';
@@ -42,18 +42,13 @@ import Input from '@components/ui/Input.js';
 import Select from '@components/ui/Select.js';
 import { cn } from '@utils/Cn.js';
 
-const getPolicySchema = (policyTypes: { id: string; name: string }[], hasClientId: boolean, isAssociate: boolean) => {
+const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociate: boolean) => {
   const motorPolicyType = policyTypes.find((t) => t.name.toUpperCase() === 'MOTOR');
   const motorId = motorPolicyType?.id || 'MOTOR';
-  const mobileValidation = hasClientId
-    ? z
-        .string()
-        .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE)
-        .or(z.literal(''))
-    : z
-        .string()
-        .min(1, 'Mobile number is required for new clients')
-        .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE);
+  const mobileValidation = z
+      .string()
+      .min(1, 'Mobile number is required')
+      .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE);
   return z
     .object({
       insuredName: z
@@ -73,7 +68,9 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], hasClientI
       policyNumber: z
         .string()
         .min(1, 'Policy number is required')
-        .regex(VALIDATION.POLICY_NUMBER, VALIDATION_ERRORS.POLICY_NUMBER),
+        .refine((val) => isAuthenticPolicyNumber(val), {
+          message: VALIDATION_ERRORS.POLICY_NUMBER,
+        }),
       endDate: z
         .string()
         .min(1, 'Renewal end date is required')
@@ -211,8 +208,8 @@ export default function PolicyFormPage() {
   const [isAssociate, setIsAssociate] = useState(false);
 
   const schema = useMemo(
-    () => getPolicySchema(policyTypes, !!selectedClientId, isAssociate),
-    [policyTypes, selectedClientId, isAssociate],
+    () => getPolicySchema(policyTypes, isAssociate),
+    [policyTypes, isAssociate],
   );
 
   const {
@@ -264,10 +261,9 @@ export default function PolicyFormPage() {
   const previewStatus = existing?.renewalStatus ?? 'PENDING';
 
   // Weighted progress calculation for Add Mode
-  const requiredFields = ['insuredName', 'policyType', 'endDate', 'policyNumber'];
+  const requiredFields = ['insuredName', 'mobileNumber', 'policyType', 'endDate', 'policyNumber'];
 
   const optionalFields = [
-    'mobileNumber',
     'referenceNote',
     'vehicleNumber',
     'premiumPrice',

@@ -2,6 +2,7 @@ export interface RowProcessStatus {
   rowNumber: number;
   clientName: string;
   mobileNumber: string | null;
+  associate: string | null;
   policyTypeName: string;
   vehicleNumber: string | null;
   policyNumber: string | null;
@@ -36,8 +37,26 @@ export interface BulkImportResponse {
   error?: BulkImportError;
 }
 
+/**
+ * Page phases for the bulk import flow:
+ *  upload    → user picks a file
+ *  previewing → preview API call in-flight
+ *  preview   → dry-run results shown; user decides to confirm or cancel
+ *  confirming → actual import API call in-flight
+ *  committed → final results shown
+ *  error     → unrecoverable upload/parse error
+ */
+export type ImportPhase =
+  | 'upload'
+  | 'previewing'
+  | 'preview'
+  | 'confirming'
+  | 'committed'
+  | 'error';
+
 export interface ImportState {
-  status: 'idle' | 'uploading' | 'success' | 'error';
-  result: BulkImportResult | null;
+  phase: ImportPhase;
+  previewResult: BulkImportResult | null;
+  commitResult: BulkImportResult | null;
   errorDetails: string[];
 }

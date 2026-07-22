@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { PrismaClient } from '@prisma/client';
 import { normaliseMobile } from '@repo/utils';
-import { VALIDATION } from '@repo/constants';
+import { VALIDATION, isAuthenticPolicyNumber } from '@repo/constants';
 
 export interface RawRow {
   clientName: string;
@@ -59,6 +59,8 @@ function safeNumber(value: unknown): number | null {
   }
   return null;
 }
+
+
 
 export function parseExcel(buffer: Buffer): RawRow[] {
   const wb = XLSX.read(buffer, { type: 'buffer', raw: false, cellDates: false });
@@ -155,6 +157,123 @@ function parseDateValue(value: unknown): Date | null {
   return null;
 }
 
+// ─── Validated row shape returned by validateRow ─────────────────────────────
+
+interface ValidatedRow {
+  clientName: string;
+  mobileNumber: string | null;
+  policyTypeName: string;
+  vehicleNumber: string | null;
+  policyNumber: string | null;
+  premiumPrice: number | null;
+  referenceNote: string | null;
+  normalisedMobile: string | null;
+  parsedEndDate: Date | null;
+  formattedEndDate: string;
+  errors: string[];
+}
+
+function validateRow(row: RawRow): ValidatedRow {
+  const clientName = row.clientName.trim();
+  const mobileNumber = row.mobileNumber ? row.mobileNumber.trim() : null;
+  const policyTypeName = row.policyTypeName.trim();
+  const vehicleNumber = row.vehicleNumber ? row.vehicleNumber.trim() : null;
+  const policyNumber = row.policyNumber ? row.policyNumber.trim() : null;
+  const premiumPrice = row.premiumPrice;
+  const referenceNote = row.referenceNote ? row.referenceNote.trim() : null;
+  const rawEndDateStr = String(row.endDate).trim();
+
+  const errors: string[] = [];
+
+  // CLIENT NAME
+  if (!clientName) {
+    errors.push('CLIENT NAME is required');
+  } else {
+    const nameRegex = /^[a-zA-Z\s.'-]+$/;
+    if (!nameRegex.test(clientName)) {
+      const invalidChars = Array.from(new Set(clientName.match(/[^a-zA-Z\s.'-]/g) ?? []));
+      const charList = invalidChars.map((c) => `"${c}"`).join(', ');
+      errors.push(
+        `CLIENT NAME "${clientName}" contains invalid characters: ${charList}. (Only letters, spaces, dots, hyphens, and apostrophes are allowed)`,
+      );
+    }
+  }
+
+  // MOBILE NUMBER
+  let normalisedMobile: string | null = null;
+  if (!mobileNumber) {
+    errors.push('MOBILE NUMBER is required');
+  } else {
+    const cleaned = normaliseMobile(mobileNumber);
+    if (!cleaned || !/^\+91[6-9]\d{9}$/.test(cleaned)) {
+      errors.push(
+        `MOBILE NUMBER "${mobileNumber}" is invalid. Expected a 10-digit Indian mobile number (optionally with +91 prefix) starting with 6-9`,
+      );
+    } else {
+      normalisedMobile = cleaned;
+    }
+  }
+
+  // POLICY TYPE
+  if (!policyTypeName) {
+    errors.push('POLICY TYPE is required');
+  }
+
+  // VEHICLE NUMBER (optional)
+  if (vehicleNumber) {
+    const upperVehicle = vehicleNumber.toUpperCase();
+    if (!VALIDATION.VEHICLE_NUMBER.test(upperVehicle)) {
+      errors.push(
+        `VEHICLE NUMBER "${vehicleNumber}" is invalid. Expected format like MH12AB1234 (2 letters state code, 1-2 digits RTO code, 1-2 letters series, and 1-4 digits unique code)`,
+      );
+    }
+  }
+
+  // POLICY NUMBER (mandatory & authentic check)
+  if (!policyNumber) {
+    errors.push('POLICY NUMBER is required');
+  } else if (!isAuthenticPolicyNumber(policyNumber)) {
+    errors.push(
+      `POLICY NUMBER "${policyNumber}" is invalid. An authentic policy number must contain digits (0-9) and valid policy characters (letters, numbers, hyphens, slashes). Plain text status words like "${policyNumber}" are not allowed.`,
+    );
+  }
+
+  // END DATE
+  const parsedEndDate = parseDateValue(row.endDate);
+  if (!parsedEndDate) {
+    errors.push(`END DATE "${rawEndDateStr}" is not a valid date. Use DD/MM/YYYY format`);
+  }
+
+  const formattedEndDate = parsedEndDate
+    ? `${String(parsedEndDate.getDate()).padStart(2, '0')}/${String(
+        parsedEndDate.getMonth() + 1,
+      ).padStart(2, '0')}/${String(parsedEndDate.getFullYear())}`
+    : rawEndDateStr;
+
+  // PREMIUM PRICE (optional)
+  if (premiumPrice !== null && (isNaN(premiumPrice) || premiumPrice < 0)) {
+    errors.push(
+      `PREMIUM PRICE "${String(row.premiumPrice)}" is invalid. Expected a positive number`,
+    );
+  }
+
+  return {
+    clientName,
+    mobileNumber,
+    policyTypeName,
+    vehicleNumber,
+    policyNumber,
+    premiumPrice,
+    referenceNote,
+    normalisedMobile,
+    parsedEndDate,
+    formattedEndDate,
+    errors,
+  };
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
 export async function processBulkImport(
   agentId: string,
   rawRows: RawRow[],
@@ -169,101 +288,40 @@ export async function processBulkImport(
   let createdPolicyTypes = 0;
   const rowStatuses: RowProcessStatus[] = [];
 
+  // Shared state across both passes
   const seenPolicyNumbersInSheet = new Set<string>();
   const policyTypeCache = new Map<string, string>();
 
-  for (const row of rawRows) {
-    const clientName = row.clientName.trim();
-    const mobileNumber = row.mobileNumber ? row.mobileNumber.trim() : null;
-    const policyTypeName = row.policyTypeName.trim();
-    const vehicleNumber = row.vehicleNumber ? row.vehicleNumber.trim() : null;
-    const policyNumber = row.policyNumber ? row.policyNumber.trim() : null;
-    const premiumPrice = row.premiumPrice;
-    const referenceNote = row.referenceNote ? row.referenceNote.trim() : null;
-    const rawEndDateStr = String(row.endDate).trim();
+  // ─── Per-row processor ────────────────────────────────────────────────────
+  // isAssociatePass = false → primary client rows (associate column is empty)
+  // isAssociatePass = true  → associate rows (associate column has a value)
+  async function processRow(row: RawRow, isAssociatePass: boolean): Promise<void> {
+    const validated = validateRow(row);
+    const {
+      clientName,
+      mobileNumber,
+      policyTypeName,
+      vehicleNumber,
+      policyNumber,
+      premiumPrice,
+      referenceNote,
+      normalisedMobile,
+      parsedEndDate,
+      formattedEndDate,
+    } = validated;
+    let { errors } = validated;
 
-    const rowErrors: string[] = [];
-
-    // Syntactic Validation
-    if (!clientName) {
-      rowErrors.push('CLIENT NAME is required');
-    } else {
-      const nameRegex = /^[a-zA-Z\s.'-]+$/;
-      if (!nameRegex.test(clientName)) {
-        const invalidChars = Array.from(new Set(clientName.match(/[^a-zA-Z\s.'-]/g) ?? []));
-        const charList = invalidChars.map((c) => `"${c}"`).join(', ');
-        rowErrors.push(
-          `CLIENT NAME "${clientName}" contains invalid characters: ${charList}. (Only letters, spaces, dots, hyphens, and apostrophes are allowed)`,
-        );
-      }
-    }
-
-    let normalisedMobile: string | null = null;
-    if (!mobileNumber) {
-      rowErrors.push('MOBILE NUMBER is required');
-    } else {
-      const cleaned = normaliseMobile(mobileNumber);
-      if (!cleaned || !/^\+91[6-9]\d{9}$/.test(cleaned)) {
-        rowErrors.push(
-          `MOBILE NUMBER "${mobileNumber}" is invalid. Expected a 10-digit Indian mobile number (optionally with +91 prefix) starting with 6-9`,
-        );
-      } else {
-        normalisedMobile = cleaned;
-      }
-    }
-
-    if (!policyTypeName) {
-      rowErrors.push('POLICY TYPE is required');
-    }
-
-    if (vehicleNumber) {
-      const upperVehicle = vehicleNumber.toUpperCase();
-      if (!VALIDATION.VEHICLE_NUMBER.test(upperVehicle)) {
-        rowErrors.push(
-          `VEHICLE NUMBER "${vehicleNumber}" is invalid. Expected format like MH12AB1234 (2 letters state code, 1-2 digits RTO code, 1-2 letters series, and 1-4 digits unique code)`,
-        );
-      }
-    }
-
-    if (policyNumber) {
-      const policyNoRegex = /^[a-zA-Z0-9/-]+$/;
-      if (!policyNoRegex.test(policyNumber)) {
-        const invalidChars = Array.from(new Set(policyNumber.match(/[^a-zA-Z0-9/-]/g) ?? []));
-        const charList = invalidChars.map((c) => `"${c}"`).join(', ');
-        rowErrors.push(
-          `POLICY NUMBER "${policyNumber}" contains invalid characters: ${charList}. (Only letters, numbers, hyphens, and slashes are allowed)`,
-        );
-      }
-    }
-
-    const parsedEndDate = parseDateValue(row.endDate);
-    if (!parsedEndDate) {
-      rowErrors.push(`END DATE "${rawEndDateStr}" is not a valid date. Use DD/MM/YYYY format`);
-    }
-
-    const formattedEndDate = parsedEndDate
-      ? `${String(parsedEndDate.getDate()).padStart(2, '0')}/${String(
-          parsedEndDate.getMonth() + 1,
-        ).padStart(2, '0')}/${String(parsedEndDate.getFullYear())}`
-      : rawEndDateStr;
-
-    if (premiumPrice !== null && (isNaN(premiumPrice) || premiumPrice < 0)) {
-      rowErrors.push(
-        `PREMIUM PRICE "${String(row.premiumPrice)}" is invalid. Expected a positive number`,
-      );
-    }
-
-    // Sheet-level duplicate policy numbers
-    if (policyNumber && !rowErrors.length) {
+    // Sheet-level duplicate policy numbers — tracked across both passes
+    if (policyNumber && errors.length === 0) {
       const upperPolicyNumber = policyNumber.toUpperCase();
       if (seenPolicyNumbersInSheet.has(upperPolicyNumber)) {
-        rowErrors.push('Policy number is duplicated within the uploaded file');
+        errors = [...errors, 'Policy number is duplicated within the uploaded file'];
       } else {
         seenPolicyNumbersInSheet.add(upperPolicyNumber);
       }
     }
 
-    if (rowErrors.length > 0) {
+    if (errors.length > 0) {
       failedCount++;
       rowStatuses.push({
         rowNumber: row.rowNumber,
@@ -277,9 +335,9 @@ export async function processBulkImport(
         premiumPrice,
         referenceNote,
         status: 'FAILED',
-        reason: rowErrors.join('; '),
+        reason: errors.join('; '),
       });
-      continue;
+      return;
     }
 
     // Business Constraints Validation and Processing (Transactional)
@@ -287,12 +345,8 @@ export async function processBulkImport(
       const mobile = normalisedMobile;
       const endDate = parsedEndDate;
 
-      if (!mobile) {
-        throw new Error('MOBILE NUMBER is required');
-      }
-      if (!endDate) {
-        throw new Error('END DATE is required');
-      }
+      if (!mobile) throw new Error('MOBILE NUMBER is required');
+      if (!endDate) throw new Error('END DATE is required');
 
       const result = await db.$transaction(async (tx) => {
         // 1. Policy Type lookup or creation
@@ -323,11 +377,9 @@ export async function processBulkImport(
         }
 
         const currentPolicyTypeId = policyTypeId;
-        if (!currentPolicyTypeId) {
-          throw new Error('POLICY TYPE ID is missing');
-        }
+        if (!currentPolicyTypeId) throw new Error('POLICY TYPE ID is missing');
 
-        // 2. Client matching or creation
+        // 2. Client resolution — behaviour differs per pass
         let clientId: string;
         let rowCreatedClient = false;
         let rowMatchedClient = false;
@@ -337,23 +389,44 @@ export async function processBulkImport(
           select: { id: true, insuredName: true },
         });
 
-        if (existingClient) {
-          if (existingClient.insuredName.toLowerCase().trim() !== clientName.toLowerCase()) {
-            throw new Error('Mobile number already belongs to another client');
+        if (isAssociatePass) {
+          // ── Pass 2: associate rows ───────────────────────────────────────
+          // The primary client MUST exist in DB by now (created in Pass 1 or
+          // pre-existing). Validate that the associate column matches the
+          // registered holder's name, then link this policy to that client.
+          if (!existingClient) {
+            throw new Error(
+              `No primary client found for mobile number ${mobile}. Ensure the file contains a row without an Associate value for this mobile number`,
+            );
           }
+          const holderName = existingClient.insuredName.toLowerCase().trim();
+          const associateName = row.associate ? row.associate.trim().toLowerCase() : '';
+          if (associateName !== holderName) {
+            throw new Error(
+              `Associate "${row.associate ?? ''}" does not match the registered holder "${existingClient.insuredName}" for this mobile number`,
+            );
+          }
+          // Valid associate → link policy to primary client
           clientId = existingClient.id;
           rowMatchedClient = true;
         } else {
-          const newClient = await tx.client.create({
-            data: {
-              insuredName: clientName,
-              mobileNumber: mobile,
-              agentId,
-            },
-            select: { id: true },
-          });
-          clientId = newClient.id;
-          rowCreatedClient = true;
+          // ── Pass 1: primary rows ─────────────────────────────────────────
+          if (existingClient) {
+            if (existingClient.insuredName.toLowerCase().trim() !== clientName.toLowerCase()) {
+              throw new Error(
+                `Mobile number already belongs to "${existingClient.insuredName}". If this is a family/associated policy, fill in the Associate column with "${existingClient.insuredName}"`,
+              );
+            }
+            clientId = existingClient.id;
+            rowMatchedClient = true;
+          } else {
+            const newClient = await tx.client.create({
+              data: { insuredName: clientName, mobileNumber: mobile, agentId },
+              select: { id: true },
+            });
+            clientId = newClient.id;
+            rowCreatedClient = true;
+          }
         }
 
         // 3. Policy unique constraint check
@@ -362,33 +435,21 @@ export async function processBulkImport(
             where: { agentId, policyNumber },
             select: { id: true },
           });
-          if (existingPolicy) {
-            throw new Error('Policy Number already exists');
-          }
+          if (existingPolicy) throw new Error('Policy Number already exists');
         } else {
           // 4. Duplicate policy check (idempotency) when policyNumber is not present
           const existingPolicy = await tx.policy.findFirst({
-            where: {
-              agentId,
-              clientId,
-              policyTypeId: currentPolicyTypeId,
-              endDate,
-              premiumPrice,
-            },
+            where: { agentId, clientId, policyTypeId: currentPolicyTypeId, endDate, premiumPrice },
             select: { id: true },
           });
-
           if (existingPolicy) {
-            return {
-              isDuplicate: true,
-              rowCreatedClient,
-              rowMatchedClient,
-              rowCreatedPolicyType,
-            };
+            return { isDuplicate: true, rowCreatedClient, rowMatchedClient, rowCreatedPolicyType };
           }
         }
 
         // 5. Create policy
+        // insuredPersonName is always the CLIENT NAME from this row — the actual insured person.
+        // For associate rows this is e.g. "MUKESH KUMAR JAIN"; for primary rows it is the main holder's name.
         const policy = await tx.policy.create({
           data: {
             agentId,
@@ -400,7 +461,7 @@ export async function processBulkImport(
             premiumPrice,
             referenceNote: referenceNote ?? null,
             renewalStatus: 'PENDING',
-            insuredPersonName: row.associate ?? null,
+            insuredPersonName: clientName,
           },
           select: { id: true },
         });
@@ -415,12 +476,7 @@ export async function processBulkImport(
           },
         });
 
-        return {
-          isDuplicate: false,
-          rowCreatedClient,
-          rowMatchedClient,
-          rowCreatedPolicyType,
-        };
+        return { isDuplicate: false, rowCreatedClient, rowMatchedClient, rowCreatedPolicyType };
       });
 
       if (result.isDuplicate) {
@@ -484,6 +540,285 @@ export async function processBulkImport(
       });
     }
   }
+
+  // ─── Pass 1: Primary rows (associate column is empty) ────────────────────────
+  // Creates or matches the primary client record for each mobile number.
+  // These are processed first so that primary clients exist in the DB before
+  // Pass 2 tries to link associate policies to them.
+  const primaryRows = rawRows.filter((r) => !r.associate);
+  for (const row of primaryRows) {
+    await processRow(row, false);
+  }
+
+  // ─── Pass 2: Associate rows (associate column has a value) ───────────────────
+  // By this point all primary clients from this batch are in the DB.
+  // Links each associate policy to its primary client and sets insuredPersonName
+  // to this row's own clientName (e.g. "MUKESH KUMAR JAIN").
+  const associateRows = rawRows.filter((r) => !!r.associate);
+  for (const row of associateRows) {
+    await processRow(row, true);
+  }
+
+  // Re-sort rowStatuses by original row number so the report matches upload order.
+  rowStatuses.sort((a, b) => a.rowNumber - b.rowNumber);
+
+  return {
+    totalRows: rawRows.length,
+    successCount,
+    failedCount,
+    duplicateCount,
+    createdClients,
+    matchedClients,
+    createdPolicies,
+    createdPolicyTypes,
+    rowStatuses,
+  };
+}
+
+// ─── Preview / Dry-run ────────────────────────────────────────────────────────
+// Runs identical validation to processBulkImport but never writes to the DB.
+// Uses in-memory maps to simulate client/policy-type creation across the two
+// passes so that associate rows can be correctly validated even when the primary
+// client doesn't yet exist in the database.
+export async function previewBulkImport(
+  agentId: string,
+  rawRows: RawRow[],
+  db: PrismaClient,
+): Promise<ImportResult> {
+  let successCount = 0;
+  let failedCount = 0;
+  let duplicateCount = 0;
+  let createdClients = 0;
+  let matchedClients = 0;
+  let createdPolicies = 0;
+  let createdPolicyTypes = 0;
+  const rowStatuses: RowProcessStatus[] = [];
+
+  const seenPolicyNumbersInSheet = new Set<string>();
+  // Real DB id OR a preview-scoped fake id (prefix "preview-pt-")
+  const policyTypeCache = new Map<string, string>();
+  // Clients that would be created by Pass 1 primary rows.
+  // Key = normalised mobile. Value = { id: "preview-client-<mobile>", insuredName }
+  const wouldBeClients = new Map<string, { id: string; insuredName: string }>();
+
+  async function processRow(row: RawRow, isAssociatePass: boolean): Promise<void> {
+    const validated = validateRow(row);
+    const {
+      clientName,
+      mobileNumber,
+      policyTypeName,
+      vehicleNumber,
+      policyNumber,
+      premiumPrice,
+      referenceNote,
+      normalisedMobile,
+      parsedEndDate,
+      formattedEndDate,
+    } = validated;
+    let { errors } = validated;
+
+    // Sheet-level duplicate policy numbers
+    if (policyNumber && errors.length === 0) {
+      const upper = policyNumber.toUpperCase();
+      if (seenPolicyNumbersInSheet.has(upper)) {
+        errors = [...errors, 'Policy number is duplicated within the uploaded file'];
+      } else {
+        seenPolicyNumbersInSheet.add(upper);
+      }
+    }
+
+    if (errors.length > 0) {
+      failedCount++;
+      rowStatuses.push({
+        rowNumber: row.rowNumber,
+        clientName,
+        mobileNumber,
+        associate: row.associate,
+        policyTypeName,
+        vehicleNumber,
+        policyNumber,
+        endDate: formattedEndDate,
+        premiumPrice,
+        referenceNote,
+        status: 'FAILED',
+        reason: errors.join('; '),
+      });
+      return;
+    }
+
+    try {
+      const mobile = normalisedMobile;
+      const endDate = parsedEndDate;
+      if (!mobile) throw new Error('MOBILE NUMBER is required');
+      if (!endDate) throw new Error('END DATE is required');
+
+      // 1. Policy Type — check DB, then simulate creation with a preview-scoped id
+      const ptCacheKey = policyTypeName.toLowerCase();
+      let policyTypeId = policyTypeCache.get(ptCacheKey);
+      let rowCreatedPolicyType = false;
+
+      if (!policyTypeId) {
+        const existingPt = await db.policyTypeMaster.findUnique({
+          where: { name: policyTypeName },
+          select: { id: true },
+        });
+        if (existingPt) {
+          policyTypeId = existingPt.id;
+          policyTypeCache.set(ptCacheKey, policyTypeId);
+        } else {
+          // Would be created
+          const fakeId = `preview-pt-${ptCacheKey}`;
+          policyTypeId = fakeId;
+          policyTypeCache.set(ptCacheKey, fakeId);
+          rowCreatedPolicyType = true;
+        }
+      }
+
+      const currentPolicyTypeId = policyTypeId;
+      if (!currentPolicyTypeId) throw new Error('POLICY TYPE ID is missing');
+
+      // 2. Client resolution (no writes)
+      let clientId: string;
+      let rowCreatedClient = false;
+      let rowMatchedClient = false;
+      // Whether clientId is a real DB id (enables the duplicate-policy idempotency check)
+      let isRealDbClient = false;
+
+      const dbClient = await db.client.findFirst({
+        where: { agentId, mobileNumber: mobile },
+        select: { id: true, insuredName: true },
+      });
+
+      if (isAssociatePass) {
+        // ── Pass 2: associate rows ─────────────────────────────────────────
+        // Accept client from DB *or* from the in-memory would-be-created map
+        const effectiveClient = dbClient ?? wouldBeClients.get(mobile) ?? null;
+
+        if (!effectiveClient) {
+          throw new Error(
+            `No primary client found for mobile number ${mobile}. Ensure the file contains a row without an Associate value for this mobile number`,
+          );
+        }
+        const holderName = effectiveClient.insuredName.toLowerCase().trim();
+        const associateName = row.associate ? row.associate.trim().toLowerCase() : '';
+        if (associateName !== holderName) {
+          throw new Error(
+            `Associate "${row.associate ?? ''}" does not match the registered holder "${effectiveClient.insuredName}" for this mobile number`,
+          );
+        }
+        clientId = effectiveClient.id;
+        rowMatchedClient = true;
+        isRealDbClient = !!dbClient;
+      } else {
+        // ── Pass 1: primary rows ───────────────────────────────────────────
+        if (dbClient) {
+          if (dbClient.insuredName.toLowerCase().trim() !== clientName.toLowerCase()) {
+            throw new Error(
+              `Mobile number already belongs to "${dbClient.insuredName}". If this is a family/associated policy, fill in the Associate column with "${dbClient.insuredName}"`,
+            );
+          }
+          clientId = dbClient.id;
+          rowMatchedClient = true;
+          isRealDbClient = true;
+        } else {
+          // Would be created — store in-memory so Pass 2 can reference it
+          const fakeId = `preview-client-${mobile}`;
+          wouldBeClients.set(mobile, { id: fakeId, insuredName: clientName });
+          clientId = fakeId;
+          rowCreatedClient = true;
+          isRealDbClient = false;
+        }
+      }
+
+      // 3. Policy number uniqueness check (DB read only)
+      if (policyNumber) {
+        const existingPolicy = await db.policy.findFirst({
+          where: { agentId, policyNumber },
+          select: { id: true },
+        });
+        if (existingPolicy) throw new Error('Policy Number already exists');
+      } else if (isRealDbClient && !currentPolicyTypeId.startsWith('preview-')) {
+        // 4. Duplicate policy check — only possible when both client and policy type are real DB records
+        const existingPolicy = await db.policy.findFirst({
+          where: { agentId, clientId, policyTypeId: currentPolicyTypeId, endDate, premiumPrice },
+          select: { id: true },
+        });
+        if (existingPolicy) {
+          duplicateCount++;
+          if (rowCreatedClient) createdClients++;
+          if (rowMatchedClient) matchedClients++;
+          if (rowCreatedPolicyType) createdPolicyTypes++;
+          rowStatuses.push({
+            rowNumber: row.rowNumber,
+            clientName,
+            mobileNumber,
+            associate: row.associate,
+            policyTypeName,
+            vehicleNumber,
+            policyNumber,
+            endDate: formattedEndDate,
+            premiumPrice,
+            referenceNote,
+            status: 'SKIPPED',
+            reason: 'Policy already exists in the system',
+          });
+          return;
+        }
+      }
+
+      // Would be created successfully
+      successCount++;
+      createdPolicies++;
+      if (rowCreatedClient) createdClients++;
+      if (rowMatchedClient) matchedClients++;
+      if (rowCreatedPolicyType) createdPolicyTypes++;
+      rowStatuses.push({
+        rowNumber: row.rowNumber,
+        clientName,
+        mobileNumber,
+        associate: row.associate,
+        policyTypeName,
+        vehicleNumber,
+        policyNumber,
+        endDate: formattedEndDate,
+        premiumPrice,
+        referenceNote,
+        status: 'SUCCESS',
+        reason: null,
+      });
+    } catch (err: unknown) {
+      failedCount++;
+      const errorMessage = err instanceof Error ? err.message : 'Unknown processing error';
+      rowStatuses.push({
+        rowNumber: row.rowNumber,
+        clientName,
+        mobileNumber,
+        associate: row.associate,
+        policyTypeName,
+        vehicleNumber,
+        policyNumber,
+        endDate: formattedEndDate,
+        premiumPrice,
+        referenceNote,
+        status: 'FAILED',
+        reason: errorMessage,
+      });
+    }
+  }
+
+  // Pass 1: primary rows (no associate)
+  const primaryRows = rawRows.filter((r) => !r.associate);
+  for (const row of primaryRows) {
+    await processRow(row, false);
+  }
+
+  // Pass 2: associate rows
+  const associateRows = rawRows.filter((r) => !!r.associate);
+  for (const row of associateRows) {
+    await processRow(row, true);
+  }
+
+  rowStatuses.sort((a, b) => a.rowNumber - b.rowNumber);
 
   return {
     totalRows: rawRows.length,
