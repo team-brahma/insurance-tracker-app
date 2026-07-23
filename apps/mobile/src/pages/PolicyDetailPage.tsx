@@ -21,6 +21,7 @@ import {
   Clock,
   FileText,
   Paperclip,
+  Building2,
   X,
 } from 'lucide-react';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
@@ -34,7 +35,7 @@ import {
   policyService,
   useUpdatePolicyMutation,
 } from '@features/policies/index.js';
-import { formatDate, daysToExpiry, urgencyBucket, daysLabel, initials } from '@repo/utils';
+import { formatDate, daysToExpiry, urgencyBucket, daysLabel, initials, isMotorPolicy } from '@repo/utils';
 import {
   RENEWAL_STATUS_LABELS,
   URGENCY_LABELS,
@@ -59,17 +60,19 @@ const ALL_STATUSES: RenewalStatus[] = [
   RenewalStatus.RENEWED,
   RenewalStatus.NOT_RENEWED,
   RenewalStatus.LAPSED,
+  RenewalStatus.INACTIVE,
 ];
 
 const statusMeta: Record<
   RenewalStatus,
-  { dot: string; badge: 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' }
+  { dot: string; badge: 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' | 'inactive' }
 > = {
   [RenewalStatus.PENDING]: { dot: 'bg-amber-edge', badge: 'pending' },
   [RenewalStatus.REMINDED]: { dot: 'bg-sky-400', badge: 'reminded' },
   [RenewalStatus.RENEWED]: { dot: 'bg-green-edge', badge: 'renewed' },
   [RenewalStatus.NOT_RENEWED]: { dot: 'bg-red-edge', badge: 'notRenewed' },
   [RenewalStatus.LAPSED]: { dot: 'bg-gray-edge', badge: 'lapsed' },
+  [RenewalStatus.INACTIVE]: { dot: 'bg-slate-400', badge: 'inactive' },
 };
 
 function resolveTemplate(
@@ -322,7 +325,7 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
     return resolveTemplate(WHATSAPP_TEMPLATE, {
       insuredName: policy.insuredPersonName || policy.client.insuredName,
       policyType: policy.policyType.name,
-      showVehicleNumber: policy.policyType.name.toLowerCase() === 'motor' && !!policy.vehicleNumber,
+      showVehicleNumber: isMotorPolicy(policy.policyType.name) && !!policy.vehicleNumber,
       vehicleNumber: policy.vehicleNumber,
       policyNumber: policy.policyNumber,
       endDate: formatDate(policy.endDate),
@@ -559,6 +562,26 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                         <Calendar size={12} className="shrink-0" />
                         Expires {formatDate(policy.endDate)}
                       </span>
+
+                      {/* Insurance Provider Badge */}
+                      {policy.insuranceProvider && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 backdrop-blur-sm shadow-sm">
+                          <Building2 size={12} className="shrink-0" />
+                          {policy.insuranceProvider.name}
+                        </span>
+                      )}
+
+                      {/* Vehicle Number or Pending Badge */}
+                      {policy.vehicleNumber ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider border border-line bg-surface/50 text-ink-soft backdrop-blur-sm shadow-sm">
+                          {policy.vehicleNumber}
+                        </span>
+                      ) : isMotorPolicy(policy.policyType.name) ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300 backdrop-blur-sm shadow-sm">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Vehicle No : Pending
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -709,18 +732,35 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                       </span>
                     }
                   />
-                  {policy.vehicleNumber && (
+                  {policy.insuranceProvider && (
                     <DataRow
-                      label="Vehicle No."
+                      label="Provider / Agency"
                       value={
-                        <span className="font-mono uppercase text-xs bg-paper px-2 py-0.5 rounded-lg border border-line font-bold">
-                          {policy.vehicleNumber}
+                        <span className="rounded-lg bg-indigo-50 dark:bg-indigo-950/45 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40 px-2 py-0.5 text-xs font-bold">
+                          {policy.insuranceProvider.name}
                         </span>
                       }
                     />
                   )}
+                  {(policy.vehicleNumber || isMotorPolicy(policy.policyType.name)) && (
+                    <DataRow
+                      label="Vehicle No"
+                      value={
+                        policy.vehicleNumber ? (
+                          <span className="font-mono uppercase text-xs bg-paper px-2.5 py-1 rounded-lg border border-line font-bold text-ink tracking-wider">
+                            {policy.vehicleNumber}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-500/20 font-semibold">
+                            <AlertCircle size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                            (New Vehicle / Not Added)
+                          </span>
+                        )
+                      }
+                    />
+                  )}
                   <DataRow
-                    label="Policy No."
+                    label="Policy No"
                     value={
                       <span className="font-mono text-xs">{policy.policyNumber ?? 'None'}</span>
                     }

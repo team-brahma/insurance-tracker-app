@@ -1,10 +1,11 @@
 import { clientRepository } from '@repositories/ClientRepository.js';
 import { NotFoundError, ValidationError } from '@errors/AppError.js';
+import { formatSmartClientName } from '@repo/utils';
 
 export const clientService = {
   async create(agentId: string, data: { insuredName: string; mobileNumber: string }) {
     return clientRepository.create(agentId, {
-      insuredName: data.insuredName,
+      insuredName: formatSmartClientName(data.insuredName),
       mobileNumber: data.mobileNumber,
     });
   },
@@ -28,7 +29,11 @@ export const clientService = {
 
   async update(agentId: string, id: string, data: { insuredName?: string; mobileNumber?: string }) {
     await this.getById(agentId, id);
-    return clientRepository.update(agentId, id, data);
+    const updateData: typeof data = { ...data };
+    if (updateData.insuredName) {
+      updateData.insuredName = formatSmartClientName(updateData.insuredName);
+    }
+    return clientRepository.update(agentId, id, updateData);
   },
 
   async delete(agentId: string, id: string) {

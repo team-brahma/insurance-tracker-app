@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSearch } from '@hooks/useSearch.js';
-import { Plus, Trash2, Tag, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Building2, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 import AppShellPage from '@components/layout/AppShellPage.js';
 import EmptyState from '@components/ui/EmptyState.js';
@@ -14,20 +14,20 @@ import AlertDialog from '@components/ui/AlertDialog.js';
 import Button from '@components/ui/Button.js';
 import Input from '@components/ui/Input.js';
 import {
-  useInfinitePolicyTypesQuery,
-  useCreatePolicyTypeMutation,
-  useUpdatePolicyTypeMutation,
-  useDeletePolicyTypeMutation,
-} from '@features/policyTypes/index.js';
-import type { PolicyTypeMaster } from '@repo/types';
+  useInfiniteInsuranceProvidersQuery,
+  useCreateInsuranceProviderMutation,
+  useUpdateInsuranceProviderMutation,
+  useDeleteInsuranceProviderMutation,
+} from '@features/insuranceProviders/index.js';
+import type { InsuranceProviderMaster } from '@repo/types';
 
-const policyTypeSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+const providerSchema = z.object({
+  name: z.string().min(1, 'Provider name is required'),
 });
 
-type PolicyTypeFormValues = z.infer<typeof policyTypeSchema>;
+type ProviderFormValues = z.infer<typeof providerSchema>;
 
-export default function PolicyTypesPage() {
+export default function InsuranceProvidersPage() {
   const {
     searchText: searchQuery,
     debouncedSearchText: debouncedSearchQuery,
@@ -41,17 +41,17 @@ export default function PolicyTypesPage() {
   }, [debouncedSearchQuery]);
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfinitePolicyTypesQuery(params);
+    useInfiniteInsuranceProvidersQuery(params);
 
-  const createMutation = useCreatePolicyTypeMutation();
-  const updateMutation = useUpdatePolicyTypeMutation();
-  const deleteMutation = useDeletePolicyTypeMutation();
+  const createMutation = useCreateInsuranceProviderMutation();
+  const updateMutation = useUpdateInsuranceProviderMutation();
+  const deleteMutation = useDeleteInsuranceProviderMutation();
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Dialog States
   const [isOpen, setIsOpen] = useState(false);
-  const [editingPolicyType, setEditingPolicyType] = useState<PolicyTypeMaster | null>(null);
+  const [editingProvider, setEditingProvider] = useState<InsuranceProviderMaster | null>(null);
 
   // Delete States
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -62,12 +62,12 @@ export default function PolicyTypesPage() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<PolicyTypeFormValues>({
-    resolver: zodResolver(policyTypeSchema),
+  } = useForm<ProviderFormValues>({
+    resolver: zodResolver(providerSchema),
     defaultValues: { name: '' },
   });
 
-  const allPolicyTypes = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+  const allProviders = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -87,27 +87,27 @@ export default function PolicyTypesPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleOpenCreate = () => {
-    setEditingPolicyType(null);
+    setEditingProvider(null);
     reset({ name: '' });
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (policyType: PolicyTypeMaster) => {
-    setEditingPolicyType(policyType);
+  const handleOpenEdit = (provider: InsuranceProviderMaster) => {
+    setEditingProvider(provider);
     reset({
-      name: policyType.name,
+      name: provider.name,
     });
     setIsOpen(true);
   };
 
-  const onSubmit = async (values: PolicyTypeFormValues) => {
+  const onSubmit = async (values: ProviderFormValues) => {
     try {
-      if (editingPolicyType) {
-        await updateMutation.mutateAsync({ id: editingPolicyType.id, data: values });
-        toast.success(`Policy type "${values.name}" updated successfully.`);
+      if (editingProvider) {
+        await updateMutation.mutateAsync({ id: editingProvider.id, data: values });
+        toast.success(`Insurance provider "${values.name}" updated successfully.`);
       } else {
         await createMutation.mutateAsync(values);
-        toast.success(`Policy type "${values.name}" created successfully.`);
+        toast.success(`Insurance provider "${values.name}" created successfully.`);
       }
       setIsOpen(false);
     } catch (err) {
@@ -121,14 +121,14 @@ export default function PolicyTypesPage() {
     if (!deleteTargetId) return;
     try {
       await deleteMutation.mutateAsync(deleteTargetId);
-      toast.success('Policy type deleted successfully.');
+      toast.success('Insurance provider deleted successfully.');
       setIsDeleteOpen(false);
     } catch (err) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
       const msg =
         axiosError.response?.data?.message ??
         axiosError.message ??
-        'Failed to delete policy type.';
+        'Failed to delete insurance provider.';
       toast.error(msg);
     }
   };
@@ -137,9 +137,9 @@ export default function PolicyTypesPage() {
 
   return (
     <AppShellPage
-      icon={Tag}
-      title="Policy Types"
-      subtitle="Manage policy classification categories across your clients."
+      icon={Building2}
+      title="Insurance Providers"
+      subtitle="Manage insurance agencies and companies supplying policies to your clients."
       actions={
         <Button
           variant="primary"
@@ -148,18 +148,18 @@ export default function PolicyTypesPage() {
           onClick={handleOpenCreate}
         >
           <Plus size={15} strokeWidth={2.5} />
-          <span>Add Type</span>
+          <span>Add Provider</span>
         </Button>
       }
       hero={
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-ink-faint">
-              <Tag size={15} />
+              <Building2 size={15} />
             </span>
             <input
               type="text"
-              placeholder="Search policy types..."
+              placeholder="Search insurance providers..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -171,40 +171,43 @@ export default function PolicyTypesPage() {
       }
     >
       <div className="space-y-4">
-        {allPolicyTypes.length === 0 ? (
+        {allProviders.length === 0 ? (
           <EmptyState
-            icon={Tag}
+            icon={Building2}
             variant={searchQuery ? 'search' : 'default'}
-            title={searchQuery ? 'No matching policy types' : 'No policy types found'}
+            title={searchQuery ? 'No matching insurance providers' : 'No insurance providers found'}
             description={
               searchQuery
                 ? 'Try a different search term.'
-                : 'Create a custom category to classify insurance renewal records.'
+                : 'Create an insurance provider or agency to associate with policy renewals.'
             }
             tip={
               searchQuery
-                ? 'Search matches the policy type name.'
-                : 'Policy types help organise renewals by insurance category (e.g. Motor, Health).'
+                ? 'Search matches the insurance provider name.'
+                : 'Providers help track which agency issuing company a policy belongs to (e.g. Star Health, HDFC ERGO).'
             }
             action={
               !searchQuery ? (
                 <Button variant="outline" size="sm" onClick={handleOpenCreate}>
-                  Add Policy Type
+                  Add Provider
                 </Button>
               ) : undefined
             }
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {allPolicyTypes.map((type) => (
+            {allProviders.map((provider) => (
               <SurfaceCard
-                key={type.id}
+                key={provider.id}
                 className="group flex flex-col justify-between p-5 border border-line hover:border-slate/40 hover:shadow-md transition-all duration-200"
               >
                 <div className="text-left">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-ink group-hover:text-slate transition-colors">
-                      {type.name}
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate/10 dark:bg-slate/20 text-slate border border-slate/15 shrink-0">
+                      <Building2 size={16} />
+                    </div>
+                    <span className="text-sm font-bold text-ink group-hover:text-slate transition-colors truncate">
+                      {provider.name}
                     </span>
                   </div>
                 </div>
@@ -215,7 +218,7 @@ export default function PolicyTypesPage() {
                     size="sm"
                     leftIcon={<Edit2 size={12} />}
                     onClick={() => {
-                      handleOpenEdit(type);
+                      handleOpenEdit(provider);
                     }}
                   >
                     Edit
@@ -225,7 +228,7 @@ export default function PolicyTypesPage() {
                     size="sm"
                     leftIcon={<Trash2 size={12} />}
                     onClick={() => {
-                      setDeleteTargetId(type.id);
+                      setDeleteTargetId(provider.id);
                       setIsDeleteOpen(true);
                     }}
                   >
@@ -262,13 +265,13 @@ export default function PolicyTypesPage() {
         onClose={() => {
           setIsOpen(false);
         }}
-        title={editingPolicyType ? 'Edit Policy Type' : 'Add Policy Type'}
-        description="Configure dynamic parameters of this policy classification."
+        title={editingProvider ? 'Edit Insurance Provider' : 'Add Insurance Provider'}
+        description="Configure details of this insurance agency or issuing company."
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left" noValidate>
           <Input
             label="Name"
-            placeholder="e.g. Cyber Insurance"
+            placeholder="e.g. Star Health Insurance"
             required
             error={errors.name?.message}
             {...register('name')}
@@ -289,7 +292,7 @@ export default function PolicyTypesPage() {
               type="submit"
               loading={createMutation.isPending || updateMutation.isPending}
             >
-              {editingPolicyType ? 'Update' : 'Save'}
+              {editingProvider ? 'Update' : 'Save'}
             </Button>
           </div>
         </form>
@@ -302,8 +305,8 @@ export default function PolicyTypesPage() {
           setIsDeleteOpen(false);
         }}
         onConfirm={handleDelete}
-        title="Delete Policy Type?"
-        description="This classification will be permanently removed. Warning: Doing this might cause issues if policies are still mapped to it."
+        title="Delete Insurance Provider?"
+        description="This provider record will be permanently removed. Warning: Providers currently linked to existing policies cannot be deleted."
         confirmLabel="Yes, Delete"
         cancelLabel="Cancel"
         variant="destructive"

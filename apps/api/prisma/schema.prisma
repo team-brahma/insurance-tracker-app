@@ -56,12 +56,24 @@ model PolicyTypeMaster {
   @@map("policy_types")
 }
 
+model InsuranceProviderMaster {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  policies  Policy[]
+
+  @@map("insurance_providers")
+}
+
 enum RenewalStatus {
   PENDING
   REMINDED
   RENEWED
   NOT_RENEWED
   LAPSED
+  INACTIVE
 
   @@map("renewal_status")
 }
@@ -82,32 +94,34 @@ model Client {
 }
 
 model Policy {
-  id             String        @id @default(uuid())
-  agentId        String        @map("agent_id")
-  clientId       String        @map("client_id")
-  policyTypeId   String        @map("policy_type_id")
-  vehicleNumber  String?       @map("vehicle_number")
-  policyNumber   String?       @map("policy_number")
-  referenceNote  String?       @map("reference_note")
-  typeNote       String?       @map("type_note")
-  endDate        DateTime      @map("end_date")
-  renewalStatus  RenewalStatus @default(PENDING) @map("renewal_status")
-  premiumPrice   Decimal?      @map("premium_price")
-  paymentLink    String?       @map("payment_link")
-  renewalNotice    String?       @map("renewal_notice") @db.MediumText
-  additionalNotice String?       @map("additional_notice")
-  isClaimed      Boolean       @default(false) @map("is_claimed")
-  claimDate      DateTime?     @map("claim_date")
-  claimAmount    Decimal?      @map("claim_amount")
-  lastRemindedAt DateTime?     @map("last_reminded_at")
-  insuredPersonName String?     @map("insured_person_name")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  id                  String                   @id @default(uuid())
+  agentId             String                   @map("agent_id")
+  clientId            String                   @map("client_id")
+  policyTypeId        String                   @map("policy_type_id")
+  insuranceProviderId String?                  @map("insurance_provider_id")
+  vehicleNumber       String?                  @map("vehicle_number")
+  policyNumber        String?                  @map("policy_number")
+  referenceNote       String?                  @map("reference_note")
+  typeNote            String?                  @map("type_note")
+  endDate             DateTime                 @map("end_date")
+  renewalStatus       RenewalStatus            @default(PENDING) @map("renewal_status")
+  premiumPrice        Decimal?                 @map("premium_price")
+  paymentLink         String?                  @map("payment_link")
+  renewalNotice       String?                  @map("renewal_notice") @db.MediumText
+  additionalNotice    String?                  @map("additional_notice")
+  isClaimed           Boolean                  @default(false) @map("is_claimed")
+  claimDate           DateTime?                @map("claim_date")
+  claimAmount         Decimal?                 @map("claim_amount")
+  lastRemindedAt      DateTime?                @map("last_reminded_at")
+  insuredPersonName   String?                  @map("insured_person_name")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @updatedAt @map("updated_at")
 
-  agent           User                 @relation(fields: [agentId], references: [id])
-  client          Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  policyType      PolicyTypeMaster     @relation(fields: [policyTypeId], references: [id])
-  statusHistories PolicyStatusHistory[]
+  agent             User                     @relation(fields: [agentId], references: [id])
+  client            Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  policyType        PolicyTypeMaster         @relation(fields: [policyTypeId], references: [id])
+  insuranceProvider InsuranceProviderMaster? @relation(fields: [insuranceProviderId], references: [id])
+  statusHistories   PolicyStatusHistory[]
 
   @@map("policies")
 }

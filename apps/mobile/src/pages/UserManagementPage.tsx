@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Lock,
   User,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AppShellPage from '@components/layout/AppShellPage.js';
@@ -53,7 +54,10 @@ export default function UserManagementPage() {
     debouncedSearchText: debouncedSearchQuery,
     setSearchText: setSearchQuery,
   } = useSearch();
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const {
     register,
@@ -69,30 +73,20 @@ export default function UserManagementPage() {
 
   const watchedRole = watch('role');
 
-  // Delete states
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const users = useMemo(() => usersResponse?.data ?? [], [usersResponse]);
 
   const filteredUsers = useMemo(() => {
-    const users = usersResponse?.data ?? [];
-    return users.filter((u: RepoUser) => {
-      const matchText = `${u.name} ${u.email}`.toLowerCase();
-      return matchText.includes(debouncedSearchQuery.toLowerCase());
-    });
-  }, [usersResponse, debouncedSearchQuery]);
+    if (!debouncedSearchQuery) return users;
+    const query = debouncedSearchQuery.toLowerCase();
+    return users.filter(
+      (u: RepoUser) =>
+        u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query),
+    );
+  }, [users, debouncedSearchQuery]);
 
   const handleOpenCreate = () => {
     reset({ name: '', email: '', password: '', role: 'AGENT' });
     setIsCreateOpen(true);
-  };
-
-  const onSubmit = async (values: CreateUserFormValues) => {
-    try {
-      await createUserMutation.mutateAsync(values);
-      setIsCreateOpen(false);
-    } catch {
-      // Handled globally
-    }
   };
 
   const handleOpenDelete = (id: string) => {
@@ -104,11 +98,21 @@ export default function UserManagementPage() {
     setIsDeleteOpen(true);
   };
 
+  const onSubmit = async (values: CreateUserFormValues) => {
+    try {
+      await createUserMutation.mutateAsync(values);
+      toast.success(`User ${values.name} created successfully`);
+      setIsCreateOpen(false);
+    } catch {
+      // Error handled by query mutation globally
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTargetId) return;
-
     try {
       await deleteUserMutation.mutateAsync(deleteTargetId);
+      toast.success('User deleted successfully');
       setIsDeleteOpen(false);
       setDeleteTargetId(null);
     } catch {
@@ -117,47 +121,42 @@ export default function UserManagementPage() {
     }
   };
 
-  if (isLoading) {
-    return <PageLoader message="Loading users..." />;
-  }
+  if (isLoading) return <PageLoader variant="default" />;
 
   if (error) {
     return (
-      <AppShellPage title="User Management" icon={Shield}>
-        <div className="flex h-60 flex-col items-center justify-center rounded-2xl border border-line bg-paper/50 p-6 text-center">
-          <ShieldAlert className="mb-3 h-10 w-10 text-red-fg" />
-          <h3 className="font-bold text-ink">Failed to load users</h3>
-          <p className="mt-1 text-sm text-ink-soft">
-            {error instanceof Error ? error.message : 'An error occurred while fetching users.'}
-          </p>
-        </div>
+      <AppShellPage icon={Users} title="User Management" subtitle="Manage system users">
+        <EmptyState
+          icon={ShieldAlert}
+          variant="error"
+          title="Access Restricted or Failed to Load"
+          description="Failed to retrieve the list of users. You may not have administrative privileges."
+        />
       </AppShellPage>
     );
   }
 
-  const actions = (
-    <Button
-      variant="primary"
-      size="md"
-      leftIcon={<UserPlus size={16} />}
-      onClick={handleOpenCreate}
-    >
-      Create User
-    </Button>
-  );
-
   return (
     <AppShellPage
+      icon={User}
       title="User Management"
-      subtitle="Manage system administrators and insurance agent accounts"
-      icon={Shield}
-      actions={actions}
+      subtitle="Manage internal system users, agents, and access control."
+      actions={
+        <Button
+          variant="primary"
+          size="sm"
+          className="!hidden md:!flex items-center gap-1.5 font-bold shadow-sm"
+          onClick={handleOpenCreate}
+        >
+          <UserPlus size={15} strokeWidth={2.5} />
+          <span>Add User</span>
+        </Button>
+      }
       hero={
-        <div className="relative mt-2 max-w-md">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
+        <div className="relative">
+          <Search size={15} className="absolute left-3.5 top-3 text-ink-faint pointer-events-none" />
           <Input
-            type="text"
-            placeholder="Search users by name or email..."
+            placeholder="Search by name or email..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -169,19 +168,10 @@ export default function UserManagementPage() {
     >
       {filteredUsers.length === 0 ? (
         <EmptyState
-          icon={User}
-          variant={searchQuery ? 'search' : 'default'}
-          title={searchQuery ? 'No matching users' : 'No users registered'}
-          description={
-            searchQuery
-              ? 'Try adjusting your search terms.'
-              : 'Create a new user to grant portal access.'
-          }
-          tip={
-            searchQuery
-              ? 'Search by name or email address.'
-              : 'Users can have admin, agent, or viewer roles with different permissions.'
-          }
+          icon={Users}
+          variant="default"
+          title="No users found"
+          description="Try adjusting your search criteria or create a new user."
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

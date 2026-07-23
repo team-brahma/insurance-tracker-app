@@ -93,6 +93,7 @@ export default function DashboardPage() {
     { label: 'Renewed', value: stats.renewed, fill: '#22c55e', status: 'RENEWED' },
     { label: 'Not Renewed', value: stats.notRenewed, fill: '#f43f5e', status: 'NOT_RENEWED' },
     { label: 'Lapsed', value: stats.lapsed, fill: '#94a3b8', status: 'LAPSED' },
+    { label: 'Inactive', value: stats.inactive ?? 0, fill: '#64748b', status: 'INACTIVE' },
   ];
 
   const radialData = [{ name: 'Renewed', value: renewalRate, fill: 'var(--slate)' }];

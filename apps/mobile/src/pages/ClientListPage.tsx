@@ -173,7 +173,7 @@ export default function ClientListPage() {
               return (
                 <motion.div key={client.id} variants={cardVariant} layout className="h-full">
                   <SurfaceCard
-                    className="group h-full cursor-pointer overflow-hidden p-0 hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] transition-all duration-300"
+                    className="group h-full cursor-pointer overflow-hidden p-0 sm:p-0 lg:p-0 backdrop-blur-sm border border-line hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] active:scale-[0.99] transition-all duration-300"
                     onClick={() => {
                       history.push(`/clients/${client.id}`);
                     }}
@@ -200,8 +200,8 @@ export default function ClientListPage() {
                               <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
                                 {client.insuredName}
                               </h3>
-                              <p className="mt-0.5 text-xs text-ink-faint font-semibold">
-                                {client.mobileNumber ?? 'No phone'}
+                              <p className="mt-0.5 text-xs font-bold text-ink-faint">
+                                {client.mobileNumber ?? 'No phone number'}
                               </p>
                             </div>
                           </div>
@@ -210,16 +210,20 @@ export default function ClientListPage() {
                             <Badge tone="neutral">
                               {policyCount} {policyCount === 1 ? 'Policy' : 'Policies'}
                             </Badge>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 text-ink-soft text-xs font-semibold text-left">
-                            <Calendar size={12} className="text-ink-faint" />
-                            <span>Added {formatDate(client.createdAt)}</span>
+                            <Badge tone={policyCount > 0 ? 'renewed' : 'pending'} dot>
+                              {policyCount > 0 ? 'Active Client' : 'No Active Policies'}
+                            </Badge>
                           </div>
                         </div>
 
+                        {/* Footer row */}
                         <div className="flex items-center justify-between border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
-                          <div className="flex items-center gap-1.5 flex-1 mr-2" />
+                          <div className="flex items-center gap-1.5 text-ink-faint">
+                            <Calendar size={12} className="shrink-0 text-ink-faint/70" />
+                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.15em]">
+                              {`Added ${formatDate(client.createdAt)}`}
+                            </span>
+                          </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
                             {client.mobileNumber && (
@@ -257,7 +261,9 @@ export default function ClientListPage() {
                             >
                               <Trash2 size={12} />
                             </button>
-                            <ChevronRight size={14} className="text-ink-faint ml-0.5" />
+                            <div className="flex h-5 w-5 items-center justify-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-slate">
+                              <ChevronRight size={14} />
+                            </div>
                           </div>
                         </div>
                       </div>

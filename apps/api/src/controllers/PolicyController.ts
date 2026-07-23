@@ -74,6 +74,7 @@ export const policyController = {
     if (body.renewalNotice != null) data.renewalNotice = body.renewalNotice;
     if (body.additionalNotice != null) data.additionalNotice = body.additionalNotice;
     if (body.insuredPersonName !== undefined) data.insuredPersonName = body.insuredPersonName ?? null;
+    if (body.insuranceProviderId !== undefined) data.insuranceProviderId = body.insuranceProviderId ?? null;
     if (body.isClaimed != null) data.isClaimed = body.isClaimed;
     if (body.claimDate != null) data.claimDate = body.claimDate;
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;
@@ -102,6 +103,7 @@ export const policyController = {
     if (body.mobileNumber != null) data.mobileNumber = normaliseMobile(body.mobileNumber);
     if (body.referenceNote != null) data.referenceNote = body.referenceNote;
     if (body.policyType != null) data.policyType = body.policyType;
+    if (body.insuranceProviderId !== undefined) data.insuranceProviderId = body.insuranceProviderId ?? null;
     if (body.vehicleNumber != null) data.vehicleNumber = body.vehicleNumber;
     if (body.policyNumber != null) data.policyNumber = body.policyNumber;
     if (body.typeNote != null) data.typeNote = body.typeNote;

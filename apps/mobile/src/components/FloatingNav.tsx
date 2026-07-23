@@ -12,6 +12,7 @@ import {
   MoreVertical,
   Sparkles,
   Tag,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@utils/Cn.js';
 import { useAuthStore } from '@features/auth/store/AuthStore.js';
@@ -111,6 +112,12 @@ export default function FloatingNav() {
       path: '/policy-types',
       icon: Tag,
       isActive: () => currentPath === '/policy-types',
+    },
+    {
+      label: 'Providers',
+      path: '/insurance-providers',
+      icon: Building2,
+      isActive: () => currentPath === '/insurance-providers',
     },
     {
       label: 'Settings',

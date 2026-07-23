@@ -49,7 +49,7 @@ export const clientRepository = {
     const [data, total] = await Promise.all([
       db.client.findMany({
         where,
-        include: { policies: { include: { policyType: true } } },
+        include: { policies: { include: { policyType: true, insuranceProvider: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -67,7 +67,7 @@ export const clientRepository = {
     const db = getDb();
     return db.client.findFirst({
       where: { id, agentId },
-      include: { policies: { include: { policyType: true } } },
+      include: { policies: { include: { policyType: true, insuranceProvider: true } } },
     });
   },
 

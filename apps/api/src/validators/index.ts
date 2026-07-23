@@ -12,3 +12,8 @@ export {
 export { createUserSchema } from './UserValidators.js';
 export { createClientSchema, updateClientSchema } from './ClientValidators.js';
 export { createPolicyTypeSchema, updatePolicyTypeSchema } from './PolicyTypeValidators.js';
+export {
+  createInsuranceProviderSchema,
+  updateInsuranceProviderSchema,
+} from './InsuranceProviderValidators.js';
+

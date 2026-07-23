@@ -32,7 +32,8 @@ import { useEnquiryQuery } from '@features/enquiries/hooks/useEnquiriesQuery.js'
 import { useFindClientQuery } from '@features/policies/hooks/useClientsSearchQuery.js';
 import { RENEWAL_STATUS_LABELS, VALIDATION, VALIDATION_ERRORS, isAuthenticPolicyNumber } from '@repo/constants';
 import { usePolicyTypesQuery } from '@features/policyTypes/index.js';
-import { daysToExpiry, formatDate, initials, urgencyBucket, daysLabel } from '@repo/utils';
+import { useInsuranceProvidersQuery } from '@features/insuranceProviders/index.js';
+import { daysToExpiry, formatDate, initials, isMotorPolicy, urgencyBucket, daysLabel } from '@repo/utils';
 import type { PolicyFormData } from '@features/policies/types/index.js';
 import PageLoader from '@components/ui/PageLoader.js';
 import Badge from '@components/ui/Badge.js';
@@ -46,9 +47,9 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociat
   const motorPolicyType = policyTypes.find((t) => t.name.toUpperCase() === 'MOTOR');
   const motorId = motorPolicyType?.id || 'MOTOR';
   const mobileValidation = z
-      .string()
-      .min(1, 'Mobile number is required')
-      .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE);
+    .string()
+    .min(1, 'Mobile number is required')
+    .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE);
   return z
     .object({
       insuredName: z
@@ -57,18 +58,18 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociat
         .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
       insuredPersonName: isAssociate
         ? z
-            .string()
-            .min(1, 'Insured person name is required')
-            .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME)
+          .string()
+          .min(1, 'Insured person name is required')
+          .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME)
         : z.string().optional(),
       mobileNumber: mobileValidation,
       referenceNote: z.string(),
       policyType: z.string().min(1, 'Policy type is required'),
+      insuranceProviderId: z.string().optional(),
       vehicleNumber: z.string(),
       policyNumber: z
         .string()
-        .min(1, 'Policy number is required')
-        .refine((val) => isAuthenticPolicyNumber(val), {
+        .refine((val) => !val.trim() || isAuthenticPolicyNumber(val), {
           message: VALIDATION_ERRORS.POLICY_NUMBER,
         }),
       endDate: z
@@ -124,11 +125,14 @@ function getInitialsColor(name: string) {
   return initialsColors[sum % initialsColors.length] ?? initialsColors[0] ?? '';
 }
 
-function statusTone(status: string): 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' {
+function statusTone(
+  status: string,
+): 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' | 'inactive' {
   if (status === 'PENDING') return 'pending';
   if (status === 'REMINDED') return 'reminded';
   if (status === 'RENEWED') return 'renewed';
   if (status === 'NOT_RENEWED') return 'notRenewed';
+  if (status === 'INACTIVE') return 'inactive';
   return 'lapsed';
 }
 
@@ -140,7 +144,7 @@ export default function PolicyFormPage() {
 
   const todayStr = useMemo(() => {
     const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return `${String(today.getFullYear())}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   }, []);
 
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -205,6 +209,16 @@ export default function PolicyFormPage() {
   const policyTypes = policyTypesRes?.data ?? [];
   const typeOptions = policyTypes.map((t) => ({ value: t.id, label: t.name }));
 
+  const { data: providersRes } = useInsuranceProvidersQuery();
+  const providers = providersRes?.data ?? [];
+  const providerOptions = useMemo(
+    () => [
+      { value: '', label: 'Select Insurance Provider (Optional)' },
+      ...providers.map((p) => ({ value: p.id, label: p.name })),
+    ],
+    [providers],
+  );
+
   const [isAssociate, setIsAssociate] = useState(false);
 
   const schema = useMemo(
@@ -229,6 +243,7 @@ export default function PolicyFormPage() {
       insuredPersonName: '',
       referenceNote: '',
       policyType: '',
+      insuranceProviderId: '',
       vehicleNumber: '',
       policyNumber: '',
       endDate: '',
@@ -244,17 +259,23 @@ export default function PolicyFormPage() {
 
   // Live watch values for card preview
   const watchInsuredName = watch('insuredName') || '';
+  const watchInsuredPersonName = watch('insuredPersonName') || '';
+  // When an associate is the insured, the insurer name is the associate's name
+  const previewDisplayName = isAssociate && watchInsuredPersonName ? watchInsuredPersonName : watchInsuredName;
   const watchPolicyType = watch('policyType') || '';
   const selectedPolicyTypeObj = policyTypes.find((t) => t.id === watchPolicyType);
   const previewPolicyTypeName = selectedPolicyTypeObj?.name ?? '';
-  const isMotor = selectedPolicyTypeObj?.name.toUpperCase() === 'MOTOR';
+  const watchInsuranceProviderId = watch('insuranceProviderId') || '';
+  const selectedProviderObj = providers.find((p) => p.id === watchInsuranceProviderId);
+  const previewProviderName = selectedProviderObj?.name ?? (watchInsuranceProviderId === existing?.insuranceProviderId ? existing?.insuranceProvider?.name : '') ?? '';
+  const isMotor = isMotorPolicy(selectedPolicyTypeObj?.name);
   const watchVehicleNumber = watch('vehicleNumber') || '';
   const watchEndDate = watch('endDate') || '';
   const watchReferenceNote = watch('referenceNote') || '';
   const watchMobileNumber = watch('mobileNumber') || '';
   const watchIsClaimed = watch('isClaimed');
 
-  const previewInitials = watchInsuredName ? initials(watchInsuredName) : '??';
+  const previewInitials = previewDisplayName ? initials(previewDisplayName) : '??';
   const previewDays = watchEndDate ? daysToExpiry(watchEndDate) : null;
   const previewUrgency = previewDays !== null ? urgencyBucket(previewDays) : 'future';
   const previewDaysLabel = previewDays !== null ? daysLabel(previewDays) : 'Select end date';
@@ -279,7 +300,7 @@ export default function PolicyFormPage() {
 
   const progressPercentage = Math.round(
     (requiredFields.length > 0 ? (filledRequired / requiredFields.length) * 70 : 70) +
-      (optionalFields.length > 0 ? (filledOptional / optionalFields.length) * 30 : 30),
+    (optionalFields.length > 0 ? (filledOptional / optionalFields.length) * 30 : 30),
   );
 
   // Urgency logic for Edit Mode (based on existing policy status)
@@ -288,50 +309,50 @@ export default function PolicyFormPage() {
 
   const urgencyBannerClass = existing
     ? {
-        overdue: 'border-rose-500/15 bg-rose-500/[0.04]',
-        due7: 'border-amber-500/15 bg-amber-500/[0.04]',
-        due30: 'border-emerald-500/15 bg-emerald-500/[0.04]',
-        future: 'border-slate-500/15 bg-slate-500/[0.04]',
-      }[urgency]
+      overdue: 'border-rose-500/15 bg-rose-500/[0.04]',
+      due7: 'border-amber-500/15 bg-amber-500/[0.04]',
+      due30: 'border-emerald-500/15 bg-emerald-500/[0.04]',
+      future: 'border-slate-500/15 bg-slate-500/[0.04]',
+    }[urgency]
     : '';
 
   const urgencyGradient = existing
     ? {
-        overdue: 'from-rose-500/10 via-rose-500/[0.02] to-transparent',
-        due7: 'from-amber-500/10 via-amber-500/[0.02] to-transparent',
-        due30: 'from-emerald-500/10 via-emerald-500/[0.02] to-transparent',
-        future: 'from-slate-500/10 via-slate-500/[0.02] to-transparent',
-      }[urgency]
+      overdue: 'from-rose-500/10 via-rose-500/[0.02] to-transparent',
+      due7: 'from-amber-500/10 via-amber-500/[0.02] to-transparent',
+      due30: 'from-emerald-500/10 via-emerald-500/[0.02] to-transparent',
+      future: 'from-slate-500/10 via-slate-500/[0.02] to-transparent',
+    }[urgency]
     : '';
 
   const avatarGradient = existing
     ? {
-        overdue: 'from-rose-500 to-red-600 text-white shadow-rose-500/20',
-        due7: 'from-amber-500 to-yellow-600 text-white shadow-amber-500/20',
-        due30: 'from-emerald-500 to-teal-600 text-white shadow-emerald-500/20',
-        future: 'from-slate-500 to-slate-600 text-white shadow-slate-500/20',
-      }[urgency]
+      overdue: 'from-rose-500 to-red-600 text-white shadow-rose-500/20',
+      due7: 'from-amber-500 to-yellow-600 text-white shadow-amber-500/20',
+      due30: 'from-emerald-500 to-teal-600 text-white shadow-emerald-500/20',
+      future: 'from-slate-500 to-slate-600 text-white shadow-slate-500/20',
+    }[urgency]
     : '';
 
   const badgeStyle = existing
     ? {
-        overdue:
-          'bg-rose-500/10 text-rose-700 border-rose-500/20 dark:text-rose-300 dark:bg-rose-950/40 dark:border-rose-900/50',
-        due7: 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-900/50',
-        due30:
-          'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-900/50',
-        future:
-          'bg-slate-500/10 text-slate-700 border-slate-500/20 dark:text-slate-300 dark:bg-slate-950/40 dark:border-slate-900/50',
-      }[urgency]
+      overdue:
+        'bg-rose-500/10 text-rose-700 border-rose-500/20 dark:text-rose-300 dark:bg-rose-950/40 dark:border-rose-900/50',
+      due7: 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-900/50',
+      due30:
+        'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-900/50',
+      future:
+        'bg-slate-500/10 text-slate-700 border-slate-500/20 dark:text-slate-300 dark:bg-slate-950/40 dark:border-slate-900/50',
+    }[urgency]
     : '';
 
   const ambientGlowColor = existing
     ? {
-        overdue: 'bg-rose-500/10',
-        due7: 'bg-amber-500/10',
-        due30: 'bg-emerald-500/10',
-        future: 'bg-slate-500/10',
-      }[urgency]
+      overdue: 'bg-rose-500/10',
+      due7: 'bg-amber-500/10',
+      due30: 'bg-emerald-500/10',
+      future: 'bg-slate-500/10',
+    }[urgency]
     : 'bg-indigo-500/10';
 
   // Auto-link found client when converting an enquiry.
@@ -366,6 +387,7 @@ export default function PolicyFormPage() {
         insuredPersonName: existing.insuredPersonName ?? '',
         referenceNote: existing.referenceNote ?? '',
         policyType: existing.policyType.id,
+        insuranceProviderId: existing.insuranceProviderId ?? existing.insuranceProvider?.id ?? '',
         vehicleNumber: existing.vehicleNumber ?? '',
         policyNumber: existing.policyNumber ?? '',
         endDate: existing.endDate ? existing.endDate.slice(0, 10) : '',
@@ -388,6 +410,7 @@ export default function PolicyFormPage() {
         insuredPersonName: '',
         referenceNote: enquiry.referredBy ? `Referred by: ${enquiry.referredBy}` : '',
         policyType: enquiry.policyTypeId,
+        insuranceProviderId: '',
         vehicleNumber: enquiry.vehicleNumber ?? '',
         policyNumber: '',
         endDate: '',
@@ -407,6 +430,7 @@ export default function PolicyFormPage() {
         insuredPersonName: '',
         referenceNote: '',
         policyType: '',
+        insuranceProviderId: '',
         vehicleNumber: '',
         policyNumber: '',
         endDate: '',
@@ -545,6 +569,11 @@ export default function PolicyFormPage() {
       payload.insuredPersonName = null;
     }
     if (form.referenceNote.trim()) payload.referenceNote = form.referenceNote.trim();
+    if (form.insuranceProviderId?.trim()) {
+      payload.insuranceProviderId = form.insuranceProviderId.trim();
+    } else {
+      payload.insuranceProviderId = null;
+    }
     if (isMotor) payload.vehicleNumber = form.vehicleNumber.trim().toUpperCase();
     if (form.policyNumber.trim()) payload.policyNumber = form.policyNumber.trim();
     if (form.premiumPrice) payload.premiumPrice = Number(form.premiumPrice);
@@ -641,7 +670,7 @@ export default function PolicyFormPage() {
 
                     <div className="text-left min-w-0">
                       <h2 className="text-lg sm:text-xl md:text-2xl font-black text-ink leading-tight tracking-tight truncate">
-                        Edit: {watchInsuredName || existing?.client.insuredName}
+                        Edit: {previewDisplayName || existing?.client.insuredName}
                       </h2>
 
                       {/* Info tags inside header */}
@@ -665,6 +694,23 @@ export default function PolicyFormPage() {
                             {previewPolicyTypeName}
                           </span>
                         )}
+
+                        {previewProviderName && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 backdrop-blur-sm shadow-sm">
+                            {previewProviderName}
+                          </span>
+                        )}
+
+                        {watchVehicleNumber ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border border-line bg-surface/50 text-ink-soft backdrop-blur-sm shadow-sm">
+                            {watchVehicleNumber}
+                          </span>
+                        ) : isMotor ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300 backdrop-blur-sm shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Vehicle No : Pending
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -723,8 +769,8 @@ export default function PolicyFormPage() {
                       whileHover={{ scale: 1.03 }}
                       className={cn(
                         'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-black text-sm sm:text-base shadow-md select-none border border-white/20 transition-all',
-                        watchInsuredName
-                          ? getInitialsColor(watchInsuredName)
+                        previewDisplayName
+                          ? getInitialsColor(previewDisplayName)
                           : 'bg-gradient-to-tr from-slate-400 to-slate-500 text-white shadow-slate-500/20',
                       )}
                     >
@@ -733,7 +779,7 @@ export default function PolicyFormPage() {
 
                     <div className="text-left min-w-0">
                       <h2 className="text-lg sm:text-xl md:text-2xl font-black text-ink leading-tight tracking-tight truncate">
-                        {watchInsuredName ? `New: ${watchInsuredName}` : 'Register New Renewal'}
+                        {previewDisplayName ? `New: ${previewDisplayName}` : 'Register New Renewal'}
                       </h2>
 
                       {/* Info tags and live progress bar inside header */}
@@ -746,6 +792,12 @@ export default function PolicyFormPage() {
                         {previewPolicyTypeName && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-line bg-surface/50 text-ink-soft backdrop-blur-sm shadow-sm">
                             {previewPolicyTypeName}
+                          </span>
+                        )}
+
+                        {previewProviderName && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 backdrop-blur-sm shadow-sm">
+                            {previewProviderName}
                           </span>
                         )}
 
@@ -938,20 +990,48 @@ export default function PolicyFormPage() {
                           label="Policy Type"
                           required
                           value={field.value}
-                          onValueChange={field.onChange}
+                          onValueChange={(newValue) => {
+                            field.onChange(newValue);
+                            const newTypeObj = policyTypes.find((t) => t.id === newValue);
+                            const newIsMotor = newTypeObj?.name.toUpperCase() === 'MOTOR';
+                            if (!newIsMotor) {
+                              setValue('vehicleNumber', '');
+                            }
+                          }}
                           options={typeOptions}
                           error={errors.policyType?.message}
                         />
                       )}
                     />
 
+                    <Controller
+                      name="insuranceProviderId"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Insurance Provider / Agency"
+                          value={field.value ?? ''}
+                          onValueChange={(newValue) => {
+                            field.onChange(newValue);
+                          }}
+                          options={providerOptions}
+                          error={errors.insuranceProviderId?.message}
+                        />
+                      )}
+                    />
+
                     {isMotor && (
-                      <Input
-                        label="Vehicle Number"
-                        placeholder="e.g. MH12AB1234"
-                        error={errors.vehicleNumber?.message}
-                        {...register('vehicleNumber')}
-                      />
+                      <div>
+                        <Input
+                          label="Vehicle Number"
+                          placeholder="e.g. MH12AB1234"
+                          error={errors.vehicleNumber?.message}
+                          {...register('vehicleNumber')}
+                        />
+                        <p className="mt-1 text-[11px] text-ink-faint">
+                          Optional — leave blank if new policy or vehicle number is not available yet.
+                        </p>
+                      </div>
                     )}
 
                     <Input
@@ -987,7 +1067,12 @@ export default function PolicyFormPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                const turningOff = field.value === true;
                                 field.onChange(!field.value);
+                                if (turningOff) {
+                                  setValue('claimDate', '');
+                                  setValue('claimAmount', '');
+                                }
                               }}
                               className={cn(
                                 'relative h-6 w-11 rounded-full border transition-all duration-200',
@@ -1182,8 +1267,8 @@ export default function PolicyFormPage() {
                             <div
                               className={cn(
                                 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-bold shadow-sm',
-                                watchInsuredName
-                                  ? getInitialsColor(watchInsuredName)
+                                previewDisplayName
+                                  ? getInitialsColor(previewDisplayName)
                                   : 'bg-indigo-50 border-indigo-100 text-indigo-600',
                               )}
                             >
@@ -1191,7 +1276,7 @@ export default function PolicyFormPage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <h3 className="text-sm font-extrabold tracking-tight text-ink truncate">
-                                {watchInsuredName || 'Insured Client Name'}
+                                {previewDisplayName || 'Insured Client Name'}
                               </h3>
                               <p
                                 className={cn(
@@ -1209,17 +1294,42 @@ export default function PolicyFormPage() {
 
                           <div className="flex flex-wrap items-center gap-1.5">
                             <Badge tone="neutral">{previewPolicyTypeName}</Badge>
-                            {watchVehicleNumber && (
+                            {previewProviderName && (
+                              <Badge
+                                tone="neutral"
+                                className="border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-semibold normal-case tracking-normal"
+                              >
+                                {previewProviderName}
+                              </Badge>
+                            )}
+                            {watchVehicleNumber ? (
                               <Badge
                                 tone="neutral"
                                 className="font-mono normal-case tracking-[0.08em]"
                               >
                                 {watchVehicleNumber}
                               </Badge>
-                            )}
+                            ) : isMotor ? (
+                              <Badge
+                                tone="pending"
+                                className="border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold normal-case tracking-normal"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1" />
+                                Vehicle No : Pending
+                              </Badge>
+                            ) : null}
                             <Badge tone={statusTone(previewStatus)} dot>
                               {RENEWAL_STATUS_LABELS[previewStatus] ?? previewStatus}
                             </Badge>
+
+                            {watchIsClaimed && (
+                              <Badge
+                                tone="overdue"
+                                className="bg-rose-500/10 text-rose-700 border-rose-500/20 dark:text-rose-300 dark:bg-rose-950/40 dark:border-rose-900/50"
+                              >
+                                Claimed
+                              </Badge>
+                            )}
                           </div>
 
                           {watchReferenceNote && (

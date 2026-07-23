@@ -26,7 +26,7 @@ import type { PolicyListParams } from '@features/policies/types/index.js';
 import { RENEWAL_STATUS_LABELS } from '@repo/constants';
 import { usePolicyTypesQuery } from '@features/policyTypes/index.js';
 import type { PolicyWithClient, UrgencyBucket } from '@repo/types';
-import { daysToExpiry, formatDate, initials, urgencyBucket } from '@repo/utils';
+import { daysToExpiry, formatDate, initials, isMotorPolicy, urgencyBucket } from '@repo/utils';
 import { cn } from '@utils/Cn.js';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 
@@ -35,6 +35,7 @@ interface UrgencyCounts {
   due7: number;
   due30: number;
   future: number;
+  inactive?: number;
   all: number;
 }
 
@@ -57,11 +58,14 @@ function daysLabel(days: number): string {
   return days === 1 ? 'Due in 1 day' : `Due in ${String(days)} days`;
 }
 
-function statusTone(status: string): 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' {
+function statusTone(
+  status: string,
+): 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' | 'inactive' {
   if (status === 'PENDING') return 'pending';
   if (status === 'REMINDED') return 'reminded';
   if (status === 'RENEWED') return 'renewed';
   if (status === 'NOT_RENEWED') return 'notRenewed';
+  if (status === 'INACTIVE') return 'inactive';
   return 'lapsed';
 }
 
@@ -219,6 +223,7 @@ export default function PolicyListPage() {
       due7: firstPageMeta?.urgencyCounts?.due7 ?? 0,
       due30: firstPageMeta?.urgencyCounts?.due30 ?? 0,
       future: firstPageMeta?.urgencyCounts?.future ?? 0,
+      inactive: firstPageMeta?.urgencyCounts?.inactive ?? 0,
     };
   }, [firstPageMeta]);
 
@@ -238,12 +243,16 @@ export default function PolicyListPage() {
 
   if (isLoading) return <PageLoader variant="list" />;
 
-  const urgencyTabs = [
-    { key: null, label: 'All', count: totalCount },
-    { key: 'overdue', label: 'Overdue', count: counts.overdue },
-    { key: 'due7', label: 'Due ≤7d', count: counts.due7 },
-    { key: 'due30', label: 'Due ≤30d', count: counts.due30 },
-    { key: 'future', label: 'Future', count: counts.future },
+  const isInactiveSelected =
+    filterStatuses.length === 1 && filterStatuses[0] === 'INACTIVE' && !activeUrgency;
+
+  const viewTabs = [
+    { type: 'all', key: null, label: 'All', count: totalCount },
+    { type: 'urgency', key: 'overdue', label: 'Overdue', count: counts.overdue },
+    { type: 'urgency', key: 'due7', label: 'Due ≤7d', count: counts.due7 },
+    { type: 'urgency', key: 'due30', label: 'Due ≤30d', count: counts.due30 },
+    { type: 'urgency', key: 'future', label: 'Future', count: counts.future },
+    { type: 'status', key: 'INACTIVE', label: 'Inactive', count: counts.inactive },
   ] as const;
 
   return (
@@ -319,19 +328,35 @@ export default function PolicyListPage() {
             )}
           </div>
 
-          {/* Urgency tab pills */}
+          {/* Urgency & Status tab pills */}
           <div className="overflow-x-auto scrollbar-hide">
             <div className="flex gap-1.5 pb-0.5">
-              {urgencyTabs.map((tab) => {
-                const isActive = tab.key === activeUrgency;
+              {viewTabs.map((tab) => {
+                const isActive =
+                  tab.type === 'all'
+                    ? !activeUrgency && filterStatuses.length === 0
+                    : tab.type === 'status'
+                      ? isInactiveSelected
+                      : tab.key === activeUrgency && filterStatuses.length === 0;
+
                 return (
                   <button
                     key={tab.key ?? 'all'}
                     type="button"
                     onClick={() => {
-                      setActiveUrgency(tab.key);
-                      if (tab.key) history.replace(`/policies?urgency=${tab.key}`);
-                      else history.replace('/policies');
+                      if (tab.type === 'status') {
+                        setActiveUrgency(null);
+                        setFilterStatuses([tab.key]);
+                        history.replace(`/policies?renewalStatus=${tab.key}`);
+                      } else if (tab.type === 'urgency') {
+                        setFilterStatuses([]);
+                        setActiveUrgency(tab.key);
+                        history.replace(`/policies?urgency=${tab.key}`);
+                      } else {
+                        setActiveUrgency(null);
+                        setFilterStatuses([]);
+                        history.replace('/policies');
+                      }
                     }}
                     className={cn(
                       'flex items-center gap-1.5 rounded-full border px-3 sm:px-3.5 py-1.5 text-xs font-bold transition-all whitespace-nowrap',
@@ -409,7 +434,7 @@ export default function PolicyListPage() {
             {enriched.map((policy) => (
               <motion.div key={policy.id} variants={cardVariant} layout className="h-full">
                 <SurfaceCard
-                  className="group h-full cursor-pointer overflow-hidden p-0 hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] transition-all duration-300"
+                  className="group h-full cursor-pointer overflow-hidden p-0 sm:p-0 lg:p-0 backdrop-blur-sm border border-line hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] active:scale-[0.99] transition-all duration-300"
                   onClick={() => {
                     history.push(`/policies/${policy.id}`);
                   }}
@@ -430,14 +455,14 @@ export default function PolicyListPage() {
                           <div
                             className={cn(
                               'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
-                              getInitialsColor(policy.insuredPersonName || policy.client.insuredName),
+                              getInitialsColor(policy.insuredPersonName ?? policy.client.insuredName),
                             )}
                           >
-                            {initials(policy.insuredPersonName || policy.client.insuredName)}
+                            {initials(policy.insuredPersonName ?? policy.client.insuredName)}
                           </div>
                           <div className="min-w-0 flex-1">
                             <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
-                              {policy.insuredPersonName || policy.client.insuredName}
+                              {policy.insuredPersonName ?? policy.client.insuredName}
                             </h3>
                             <p
                               className={cn(
@@ -456,14 +481,30 @@ export default function PolicyListPage() {
                         {/* Tags */}
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           <Badge tone="neutral">{policy.policyType.name}</Badge>
-                          {policy.vehicleNumber && (
+                          {policy.insuranceProvider && (
+                            <Badge
+                              tone="neutral"
+                              className="border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-semibold normal-case tracking-normal"
+                            >
+                              {policy.insuranceProvider.name}
+                            </Badge>
+                          )}
+                          {policy.vehicleNumber ? (
                             <Badge
                               tone="neutral"
                               className="font-mono normal-case tracking-[0.08em]"
                             >
                               {policy.vehicleNumber}
                             </Badge>
-                          )}
+                          ) : isMotorPolicy(policy.policyType.name) ? (
+                            <Badge
+                              tone="pending"
+                              className="border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold normal-case tracking-normal"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1" />
+                              Vehicle No : Pending
+                            </Badge>
+                          ) : null}
                           <Badge tone={statusTone(policy.renewalStatus)} dot>
                             {RENEWAL_STATUS_LABELS[policy.renewalStatus] ?? policy.renewalStatus}
                           </Badge>

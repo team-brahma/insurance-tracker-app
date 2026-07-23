@@ -2,6 +2,7 @@ import { policyRepository } from '@repositories/PolicyRepository.js';
 import { clientRepository } from '@repositories/ClientRepository.js';
 import { enquiryRepository } from '@repositories/EnquiryRepository.js';
 import { NotFoundError, ValidationError } from '@errors/AppError.js';
+import { formatSmartClientName } from '@repo/utils';
 import type { RenewalStatus } from '@prisma/client';
 
 interface ListPoliciesParams {
@@ -57,6 +58,7 @@ export const policyService = {
       claimDate?: string | null;
       claimAmount?: number | null;
       insuredPersonName?: string | null;
+      insuranceProviderId?: string | null;
     },
   ) {
     let client: { id: string; insuredName: string; mobileNumber: string | null } | null;
@@ -69,13 +71,14 @@ export const policyService = {
         ? await clientRepository.findByMobile(agentId, data.mobileNumber)
         : null;
 
-      client ??= await clientRepository.findByName(agentId, data.insuredName);
+      const formattedName = formatSmartClientName(data.insuredName);
+      client ??= await clientRepository.findByName(agentId, formattedName);
 
       if (!data.mobileNumber) {
         throw new ValidationError('Mobile number is required to register a new client');
       }
       client ??= await clientRepository.create(agentId, {
-        insuredName: data.insuredName,
+        insuredName: formattedName,
         mobileNumber: data.mobileNumber,
       });
     }
@@ -90,6 +93,7 @@ export const policyService = {
       policyTypeId: data.policyType,
       endDate,
     };
+    if (data.insuranceProviderId !== undefined) createData.insuranceProviderId = data.insuranceProviderId;
     if (data.vehicleNumber !== undefined) createData.vehicleNumber = data.vehicleNumber;
     if (data.policyNumber !== undefined) createData.policyNumber = data.policyNumber;
     if (data.referenceNote !== undefined) createData.referenceNote = data.referenceNote;
@@ -99,7 +103,9 @@ export const policyService = {
     if (data.paymentLink !== undefined) createData.paymentLink = data.paymentLink;
     if (data.renewalNotice !== undefined) createData.renewalNotice = data.renewalNotice;
     if (data.additionalNotice !== undefined) createData.additionalNotice = data.additionalNotice;
-    if (data.insuredPersonName !== undefined) createData.insuredPersonName = data.insuredPersonName;
+    if (data.insuredPersonName !== undefined) {
+      createData.insuredPersonName = data.insuredPersonName ? formatSmartClientName(data.insuredPersonName) : null;
+    }
     if (data.isClaimed !== undefined) createData.isClaimed = data.isClaimed;
     if (data.claimDate !== undefined && data.claimDate !== null) {
       const claimDate = new Date(data.claimDate.slice(0, 10) + 'T00:00:00.000Z');
@@ -144,6 +150,7 @@ export const policyService = {
       claimDate?: string | null;
       claimAmount?: number | null;
       insuredPersonName?: string | null;
+      insuranceProviderId?: string | null;
     },
   ) {
     const existing = await this.getById(agentId, id);
@@ -157,6 +164,7 @@ export const policyService = {
     }
 
     if (data.policyType !== undefined) updateData.policyTypeId = data.policyType;
+    if (data.insuranceProviderId !== undefined) updateData.insuranceProviderId = data.insuranceProviderId;
     if (data.vehicleNumber !== undefined) updateData.vehicleNumber = data.vehicleNumber;
     if (data.policyNumber !== undefined) updateData.policyNumber = data.policyNumber;
     if (data.referenceNote !== undefined) updateData.referenceNote = data.referenceNote;

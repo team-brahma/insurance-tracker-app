@@ -66,9 +66,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 3,
-      staleTime: 5 * 60 * 1000,
+      staleTime: 10 * 1000, // 10 seconds for responsive db sync
       gcTime: 10 * 60 * 1000,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       refetchOnReconnect: true,
     },
     mutations: {

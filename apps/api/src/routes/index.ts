@@ -9,6 +9,7 @@ import userRoutes from './Users.js';
 import enquiryRoutes from './Enquiries.js';
 import notificationRoutes from './Notifications.js';
 import policyTypeRoutes from './PolicyTypes.js';
+import insuranceProviderRoutes from './InsuranceProviders.js';
 import bulkRoutes from './BulkImport.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
@@ -24,5 +25,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(statsRoutes, { prefix: '/api/v1/stats' });
   await app.register(notificationRoutes, { prefix: '/api/v1/notifications' });
   await app.register(policyTypeRoutes, { prefix: '/api/v1/policy-types' });
+  await app.register(insuranceProviderRoutes, { prefix: '/api/v1/insurance-providers' });
   await app.register(bulkRoutes, { prefix: '/api/v1/bulk' });
 }

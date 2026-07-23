@@ -32,7 +32,7 @@ import {
 } from '@features/enquiries/index.js';
 import { ENQUIRY_STATUS_LABELS } from '@repo/constants';
 import { usePolicyTypesQuery } from '@features/policyTypes/index.js';
-import { formatDateTime, initials } from '@repo/utils';
+import { formatDateTime, initials, isMotorPolicy } from '@repo/utils';
 import { cn } from '@utils/Cn.js';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 
@@ -381,7 +381,7 @@ export default function EnquiryListPage() {
               return (
                 <motion.div key={enquiry.id} variants={cardVariant} layout className="h-full">
                   <SurfaceCard
-                    className="group h-full cursor-pointer overflow-hidden p-0 hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] transition-all duration-300"
+                    className="group h-full cursor-pointer overflow-hidden p-0 sm:p-0 lg:p-0 backdrop-blur-sm border border-line hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] active:scale-[0.99] transition-all duration-300"
                     onClick={() => {
                       history.push(`/enquiries/${enquiry.id}`);
                     }}
@@ -413,7 +413,7 @@ export default function EnquiryListPage() {
                               <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
                                 {enquiry.name}
                               </h3>
-                              <p className="mt-0.5 text-xs text-ink-faint font-semibold">
+                              <p className="mt-0.5 text-xs font-bold text-ink-faint">
                                 {enquiry.mobileNumber}
                               </p>
                             </div>
@@ -422,6 +422,22 @@ export default function EnquiryListPage() {
                           {/* Details tags */}
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                             <Badge tone="neutral">{enquiry.policyType.name}</Badge>
+                            {enquiry.vehicleNumber ? (
+                              <Badge
+                                tone="neutral"
+                                className="font-mono normal-case tracking-[0.08em]"
+                              >
+                                {enquiry.vehicleNumber}
+                              </Badge>
+                            ) : isMotorPolicy(enquiry.policyType.name) ? (
+                              <Badge
+                                tone="pending"
+                                className="border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold normal-case tracking-normal"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1" />
+                                Vehicle No : Pending
+                              </Badge>
+                            ) : null}
                             <Badge tone={cardStatusTone} dot>
                               {ENQUIRY_STATUS_LABELS[enquiry.status] ?? enquiry.status}
                             </Badge>
@@ -433,9 +449,13 @@ export default function EnquiryListPage() {
                           </div>
 
                           {enquiry.remindOn && (
-                            <div className="flex items-center gap-1.5 text-ink-soft text-xs font-semibold text-left">
-                              <Calendar size={12} className="text-ink-faint" />
-                              <span>Remind on: {formatDateTime(enquiry.remindOn)}</span>
+                            <div className="rounded-xl bg-paper/60 border border-line/45 px-3 py-2 text-xs text-ink-soft transition-colors duration-200 group-hover:bg-paper/85 text-left">
+                              <span className="text-[9px] font-black tracking-wider text-ink-faint mr-1.5 uppercase">
+                                REMIND:
+                              </span>
+                              <span className="font-semibold text-ink">
+                                {formatDateTime(enquiry.remindOn)}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -452,7 +472,7 @@ export default function EnquiryListPage() {
                                     e.stopPropagation();
                                     history.push(`/policies/new?enquiryId=${enquiry.id}`);
                                   }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-edge/30 bg-green-bg text-green-fg text-xs font-bold transition hover:bg-green-edge/20 active:scale-95 cursor-pointer shadow-sm"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-green-edge/30 bg-green-bg text-green-fg text-xs font-bold transition hover:bg-green-edge/20 active:scale-95 cursor-pointer shadow-sm"
                                   title="Convert to Policy/Renewal"
                                 >
                                   <CheckCircle size={12} />
@@ -464,14 +484,21 @@ export default function EnquiryListPage() {
                                     e.stopPropagation();
                                     setDropTarget({ id: enquiry.id, name: enquiry.name });
                                   }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-edge/30 bg-red-bg text-red-fg text-xs font-bold transition hover:bg-red-edge/20 active:scale-95 cursor-pointer shadow-sm"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-edge/30 bg-red-bg text-red-fg text-xs font-bold transition hover:bg-red-edge/20 active:scale-95 cursor-pointer shadow-sm"
                                   title="Drop Enquiry"
                                 >
                                   <XCircle size={12} />
                                   <span>Drop</span>
                                 </button>
                               </>
-                            ) : null}
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-ink-faint">
+                                <Calendar size={12} className="shrink-0 text-ink-faint/70" />
+                                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.15em]">
+                                  {`Created ${formatDateTime(enquiry.createdAt)}`}
+                                </span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Right actions: Phone, Edit, Delete */}
@@ -507,7 +534,7 @@ export default function EnquiryListPage() {
                                 void handleDelete(enquiry.id);
                               }}
                               title="Delete Enquiry"
-                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-red-edge/20 bg-surface text-red-fg hover:border-red-edge/40 hover:bg-red-bg/50 shadow-sm transition active:scale-95 cursor-pointer"
+                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-red-fg active:scale-95 cursor-pointer"
                             >
                               <Trash2 size={12} />
                             </button>

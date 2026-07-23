@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  AlertCircle,
   Send,
   FileText,
 } from 'lucide-react';
@@ -26,7 +27,7 @@ import {
 } from '@features/enquiries/hooks/useEnquiriesQuery.js';
 import { ENQUIRY_STATUS_LABELS, DROP_REASON_LABELS } from '@repo/constants';
 import { EnquiryStatus, type EnquiryStatusHistory } from '@repo/types';
-import { formatDate, formatDateTime, initials } from '@repo/utils';
+import { formatDate, formatDateTime, initials, isMotorPolicy } from '@repo/utils';
 import PageLoader from '@components/ui/PageLoader.js';
 import AlertDialog from '@components/ui/AlertDialog.js';
 import Button from '@components/ui/Button.js';
@@ -386,10 +387,21 @@ export default function EnquiryDetailPage() {
                     }
                   />
                   <DataRow label="Policy Type" value={policyType} />
-                  {policyType.toUpperCase() === 'MOTOR' && enquiry.vehicleNumber && (
+                  {(enquiry.vehicleNumber || isMotorPolicy(policyType)) && (
                     <DataRow
                       label="Vehicle Number"
-                      value={<span className="font-mono uppercase">{enquiry.vehicleNumber}</span>}
+                      value={
+                        enquiry.vehicleNumber ? (
+                          <span className="font-mono uppercase text-xs bg-paper px-2.5 py-1 rounded-lg border border-line font-bold text-ink tracking-wider">
+                            {enquiry.vehicleNumber}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-500/20 font-semibold">
+                            <AlertCircle size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                            Vehicle No : Pending (Not Added)
+                          </span>
+                        )
+                      }
                     />
                   )}
                   <DataRow

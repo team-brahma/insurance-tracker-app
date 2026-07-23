@@ -59,6 +59,25 @@ async function main() {
     policyTypesMap[key] = created.id;
   }
 
+  // Seed insurance providers
+  const insuranceProvidersData = [
+    { id: '11111111-1111-4111-8111-111111111111', name: 'HDFC ERGO' },
+    { id: '22222222-2222-4222-8222-222222222222', name: 'Star Health' },
+    { id: '33333333-3333-4333-8333-333333333333', name: 'ICICI Lombard' },
+    { id: '44444444-4444-4444-8444-444444444444', name: 'TATA AIG' },
+    { id: '55555555-5555-4555-8555-555555555555', name: 'Bajaj Allianz' },
+    { id: '66666666-6666-4666-8666-666666666666', name: 'LIC' },
+    { id: '77777777-7777-4777-8777-777777777777', name: 'New India Assurance' },
+  ];
+
+  for (const ip of insuranceProvidersData) {
+    await db.insuranceProviderMaster.upsert({
+      where: { name: ip.name },
+      update: {},
+      create: ip,
+    });
+  }
+
   async function createPolicyWithHistory(data: {
     agentId: string;
     clientId: string;
@@ -169,28 +188,32 @@ async function main() {
   }
 
   // 4. Backfill any existing Client and Policy records to point to the agentUser
-  const clientsToBackfill = await db.client.count({
-    where: { NOT: { agentId: agentUser.id } },
-  });
-  if (clientsToBackfill > 0) {
-    await db.client.updateMany({
-      data: { agentId: agentUser.id },
+  try {
+    const clientsToBackfill = await db.client.count({
+      where: { NOT: { agentId: agentUser.id } },
     });
-    console.log(
-      `Backfilled ${String(clientsToBackfill)} clients to reference agent ID: ${agentUser.id}`,
-    );
-  }
+    if (clientsToBackfill > 0) {
+      await db.client.updateMany({
+        data: { agentId: agentUser.id },
+      });
+      console.log(
+        `Backfilled ${String(clientsToBackfill)} clients to reference agent ID: ${agentUser.id}`,
+      );
+    }
 
-  const policiesToBackfill = await db.policy.count({
-    where: { NOT: { agentId: agentUser.id } },
-  });
-  if (policiesToBackfill > 0) {
-    await db.policy.updateMany({
-      data: { agentId: agentUser.id },
+    const policiesToBackfill = await db.policy.count({
+      where: { NOT: { agentId: agentUser.id } },
     });
-    console.log(
-      `Backfilled ${String(policiesToBackfill)} policies to reference agent ID: ${agentUser.id}`,
-    );
+    if (policiesToBackfill > 0) {
+      await db.policy.updateMany({
+        data: { agentId: agentUser.id },
+      });
+      console.log(
+        `Backfilled ${String(policiesToBackfill)} policies to reference agent ID: ${agentUser.id}`,
+      );
+    }
+  } catch {
+    console.log('Skipping backfill due to unique constraint on existing records');
   }
 
   // 5. If clients and policies are completely empty, seed realistic dummy data

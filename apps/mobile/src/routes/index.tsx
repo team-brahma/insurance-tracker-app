@@ -15,6 +15,7 @@ import ClientFormPage from '@pages/ClientFormPage.js';
 import ClientDetailPage from '@pages/ClientDetailPage.js';
 import NotificationsPage from '@pages/NotificationsPage.js';
 import PolicyTypesPage from '@pages/PolicyTypesPage.js';
+import InsuranceProvidersPage from '@pages/InsuranceProvidersPage.js';
 import BulkImportPage from '@pages/BulkImportPage.js';
 
 function ProtectedRoute({
@@ -122,6 +123,12 @@ export function AppRoutes() {
         exact
         path="/policy-types"
         component={PolicyTypesPage}
+        allowedRoles={['AGENT']}
+      />
+      <ProtectedRoute
+        exact
+        path="/insurance-providers"
+        component={InsuranceProvidersPage}
         allowedRoles={['AGENT']}
       />
       <ProtectedRoute

@@ -14,7 +14,8 @@ interface BadgeProps {
     | 'reminded'
     | 'renewed'
     | 'notRenewed'
-    | 'lapsed';
+    | 'lapsed'
+    | 'inactive';
   dot?: boolean;
   className?: string;
 }
@@ -31,6 +32,7 @@ const toneMap: Record<NonNullable<BadgeProps['tone']>, string> = {
   renewed: 'bg-green-bg text-green-fg border-green-edge/20',
   notRenewed: 'bg-red-bg text-red-fg border-red-edge/20',
   lapsed: 'bg-gray-bg text-gray-fg border-gray-edge/25',
+  inactive: 'bg-slate-100 text-slate-700 border-slate-200/60 dark:bg-slate-900/40 dark:text-slate-300',
 };
 
 const dotToneMap: Record<NonNullable<BadgeProps['tone']>, string> = {
@@ -45,6 +47,7 @@ const dotToneMap: Record<NonNullable<BadgeProps['tone']>, string> = {
   renewed: 'bg-green-edge',
   notRenewed: 'bg-red-edge',
   lapsed: 'bg-gray-edge',
+  inactive: 'bg-slate-400',
 };
 
 export default function Badge({ children, tone = 'neutral', dot = false, className }: BadgeProps) {

@@ -103,11 +103,11 @@ export const policyRepository = {
       return queryWhere;
     };
 
-    const [data, total, totalMatching, overdueCount, due7Count, due30Count, futureCount] =
+    const [data, total, totalMatching, overdueCount, due7Count, due30Count, futureCount, inactiveCount] =
       await Promise.all([
         db.policy.findMany({
           where,
-          include: { client: true, policyType: true },
+          include: { client: true, policyType: true, insuranceProvider: true },
           orderBy: { createdAt: 'desc' },
           skip,
           take: limit,
@@ -122,6 +122,7 @@ export const policyRepository = {
           where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due30Date } }),
         }),
         db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gt: due30Date } }) }),
+        db.policy.count({ where: buildWhereWithUrgencyFilter({ renewalStatus: 'INACTIVE' }) }),
       ]);
 
     return {
@@ -136,6 +137,7 @@ export const policyRepository = {
           due7: due7Count,
           due30: due30Count,
           future: futureCount,
+          inactive: inactiveCount,
           all: totalMatching,
         },
       },
@@ -146,7 +148,7 @@ export const policyRepository = {
     const db = getDb();
     return db.policy.findFirst({
       where: { id, agentId },
-      include: { client: true, policyType: true },
+      include: { client: true, policyType: true, insuranceProvider: true },
     });
   },
 
@@ -154,7 +156,7 @@ export const policyRepository = {
     const db = getDb();
     return db.policy.findUnique({
       where: { id },
-      include: { client: true, policyType: true },
+      include: { client: true, policyType: true, insuranceProvider: true },
     });
   },
 
@@ -163,6 +165,7 @@ export const policyRepository = {
     data: {
       clientId: string;
       policyTypeId: string;
+      insuranceProviderId?: string | null;
       vehicleNumber?: string | null;
       policyNumber?: string | null;
       referenceNote?: string | null;
@@ -186,6 +189,7 @@ export const policyRepository = {
           agentId,
           clientId: data.clientId,
           policyTypeId: data.policyTypeId,
+          insuranceProviderId: data.insuranceProviderId ?? null,
           vehicleNumber: data.vehicleNumber ?? null,
           policyNumber: data.policyNumber ?? null,
           referenceNote: data.referenceNote ?? null,
@@ -201,7 +205,7 @@ export const policyRepository = {
           claimAmount: data.claimAmount ?? null,
           insuredPersonName: data.insuredPersonName ?? null,
         },
-        include: { client: true, policyType: true },
+        include: { client: true, policyType: true, insuranceProvider: true },
       });
 
       await tx.policyStatusHistory.create({
@@ -227,7 +231,7 @@ export const policyRepository = {
       const updated = await tx.policy.update({
         where: { id },
         data,
-        include: { client: true, policyType: true },
+        include: { client: true, policyType: true, insuranceProvider: true },
       });
 
       if (data.renewalStatus !== undefined && data.renewalStatus !== previousStatus) {
@@ -267,7 +271,7 @@ export const policyRepository = {
       const updated = await tx.policy.update({
         where: { id },
         data: updateData,
-        include: { client: true, policyType: true },
+        include: { client: true, policyType: true, insuranceProvider: true },
       });
 
       if (previousStatus !== status) {
@@ -308,6 +312,7 @@ export const policyRepository = {
         db.policy.count({ where: { ...baseWhere, renewalStatus: 'RENEWED' } }),
         db.policy.count({ where: { ...baseWhere, renewalStatus: 'NOT_RENEWED' } }),
         db.policy.count({ where: { ...baseWhere, renewalStatus: 'LAPSED' } }),
+        db.policy.count({ where: { ...baseWhere, renewalStatus: 'INACTIVE' } }),
       ]),
     ]);
 
@@ -322,6 +327,7 @@ export const policyRepository = {
       renewed: statusCounts[2],
       notRenewed: statusCounts[3],
       lapsed: statusCounts[4],
+      inactive: statusCounts[5],
     };
   },
 

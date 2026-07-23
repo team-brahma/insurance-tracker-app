@@ -13,7 +13,7 @@ import {
 } from '@features/enquiries/hooks/useEnquiriesQuery.js';
 import { VALIDATION, VALIDATION_ERRORS, ENQUIRY_STATUS_LABELS } from '@repo/constants';
 import { usePolicyTypesQuery } from '@features/policyTypes/index.js';
-import { initials } from '@repo/utils';
+import { initials, isMotorPolicy } from '@repo/utils';
 import PageLoader from '@components/ui/PageLoader.js';
 import Button from '@components/ui/Button.js';
 import Input from '@components/ui/Input.js';
@@ -259,7 +259,7 @@ export default function EnquiryFormPage() {
   const colors = isEdit ? statusColors(previewStatus) : null;
   const selectedPolicyTypeObj = policyTypes.find((t) => t.id === watchPolicyType);
   const previewPolicyTypeName = selectedPolicyTypeObj?.name ?? '';
-  const isMotor = selectedPolicyTypeObj?.name.toUpperCase() === 'MOTOR';
+  const isMotor = isMotorPolicy(selectedPolicyTypeObj?.name);
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -275,7 +275,7 @@ export default function EnquiryFormPage() {
       }
 
       const watchPolicyTypeObj = policyTypes.find((t) => t.id === values.policyType);
-      const isMotorVal = watchPolicyTypeObj?.name.toUpperCase() === 'MOTOR';
+      const isMotorVal = isMotorPolicy(watchPolicyTypeObj?.name);
 
       const digits = values.mobileNumber.replace(/\D/g, '');
       const payload = {
@@ -550,12 +550,17 @@ export default function EnquiryFormPage() {
             />
 
             {isMotor && (
-              <Input
-                label="Vehicle Number"
-                placeholder="e.g. MH12AB1234"
-                error={errors.vehicleNumber?.message}
-                {...register('vehicleNumber')}
-              />
+              <div>
+                <Input
+                  label="Vehicle Number"
+                  placeholder="e.g. MH12AB1234"
+                  error={errors.vehicleNumber?.message}
+                  {...register('vehicleNumber')}
+                />
+                <p className="mt-1 text-[11px] text-ink-faint">
+                  Optional — leave blank if new vehicle or registration number is pending.
+                </p>
+              </div>
             )}
 
             <Input

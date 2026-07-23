@@ -32,9 +32,9 @@ export const createPolicySchema = z.object({
     }),
   policyNumber: z
     .string()
-    .min(1, 'Policy number is required')
+    .nullish()
     .transform((v) => (v ? v.replace(/\s+/g, '') : v))
-    .refine((v) => isAuthenticPolicyNumber(v), {
+    .refine((v) => v == null || v === '' || isAuthenticPolicyNumber(v), {
       message: VALIDATION_ERRORS.POLICY_NUMBER,
     }),
   typeNote: z.string().nullish(),
@@ -52,6 +52,7 @@ export const createPolicySchema = z.object({
   isClaimed: z.boolean().default(false).optional(),
   claimDate: z.string().nullish(),
   claimAmount: z.number().nullish(),
+  insuranceProviderId: z.string().nullish(),
   enquiryId: z.string().nullish(),
   clientId: z.string().nullish(),
 });
@@ -106,6 +107,7 @@ export const updatePolicySchema = z.object({
   isClaimed: z.boolean().optional(),
   claimDate: z.string().nullish(),
   claimAmount: z.number().nullish(),
+  insuranceProviderId: z.string().nullish(),
   clientId: z.string().nullish(),
 });
 

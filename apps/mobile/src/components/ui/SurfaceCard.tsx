@@ -17,10 +17,12 @@ export default function SurfaceCard({
   children,
   ...props
 }: SurfaceCardProps) {
+  const hasCustomPadding = className?.includes('p-0') || className?.includes('!p-') || className?.includes('p-');
   return (
     <section
       className={cn(
-        'group/surface rounded-[28px] border border-line bg-surface/92 p-5 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-sm transition-all duration-300 sm:p-6 lg:p-7',
+        'group/surface rounded-2xl border border-line bg-surface/92 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-sm transition-all duration-300',
+        !hasCustomPadding && 'p-5 sm:p-6 lg:p-7',
         'hover:border-line-strong/60 hover:shadow-[0_16px_50px_rgba(15,23,42,0.10)]',
         className,
       )}
