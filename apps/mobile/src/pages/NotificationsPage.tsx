@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
-import { useNotificationsQuery } from '@features/notifications/hooks/useNotificationsQuery.js';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNotificationCountQuery, notificationKeys } from '@features/notifications/index.js';
 import NotificationList from '@components/NotificationList.js';
 import AppShellPage from '@components/layout/AppShellPage.js';
 import PageLoader from '@components/ui/PageLoader.js';
@@ -16,21 +17,24 @@ const tabs = [
 
 export default function NotificationsPage() {
   const history = useHistory();
-  const { data: notifications, isLoading, refetch } = useNotificationsQuery();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const { data: countData, isLoading } = useNotificationCountQuery();
   const [activeTab, setActiveTab] = useState<'all' | 'policies' | 'enquiries'>('all');
 
-  const searchParams = new URLSearchParams(history.location.search);
-  const tabParam = searchParams.get('tab');
-
   useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tabParam = searchParams.get('tab');
     if (tabParam && (tabParam === 'all' || tabParam === 'policies' || tabParam === 'enquiries')) {
       setActiveTab(tabParam);
+    } else {
+      setActiveTab('all');
     }
-  }, [tabParam]);
+  }, [location.search]);
 
-  const policyCount = notifications?.policies.length ?? 0;
-  const enquiryCount = notifications?.enquiries.length ?? 0;
-  const totalCount = notifications?.totalCount ?? 0;
+  const totalCount = countData?.totalCount ?? 0;
+  const policyCount = countData?.policyCount ?? 0;
+  const enquiryCount = countData?.enquiryCount ?? 0;
 
   const tabCounts: Record<string, number> = {
     all: totalCount,
@@ -64,7 +68,7 @@ export default function NotificationsPage() {
           <div className="flex gap-1.5 pb-0.5">
             {tabs.map((tab) => {
               const isActive = tab.key === activeTab;
-              const tabCount = tabCounts[tab.key];
+              const tabCount = tabCounts[tab.key] ?? 0;
               return (
                 <button
                   key={tab.key}
@@ -98,7 +102,7 @@ export default function NotificationsPage() {
       <IonRefresher
         slot="fixed"
         onIonRefresh={(event) => {
-          void refetch().finally(() => {
+          void queryClient.invalidateQueries({ queryKey: notificationKeys.all }).finally(() => {
             event.detail.complete();
           });
         }}

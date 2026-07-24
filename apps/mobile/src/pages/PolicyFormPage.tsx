@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Paperclip,
   X,
+  Users,
 } from 'lucide-react';
 import { useHistory, useParams, useLocation } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
@@ -33,6 +34,7 @@ import { useFindClientQuery } from '@features/policies/hooks/useClientsSearchQue
 import { RENEWAL_STATUS_LABELS, VALIDATION, VALIDATION_ERRORS, isAuthenticPolicyNumber } from '@repo/constants';
 import { usePolicyTypesQuery } from '@features/policyTypes/index.js';
 import { useInsuranceProvidersQuery } from '@features/insuranceProviders/index.js';
+import { useAssociateAgentsQuery, useCreateAssociateAgentMutation } from '@features/associateAgents/index.js';
 import { daysToExpiry, formatDate, initials, isMotorPolicy, urgencyBucket, daysLabel } from '@repo/utils';
 import type { PolicyFormData } from '@features/policies/types/index.js';
 import PageLoader from '@components/ui/PageLoader.js';
@@ -41,7 +43,11 @@ import ClientSearch from '@components/ui/ClientSearch.js';
 import Button from '@components/ui/Button.js';
 import Input from '@components/ui/Input.js';
 import Select from '@components/ui/Select.js';
+import Checkbox from '@components/ui/Checkbox.js';
+import Radio from '@components/ui/Radio.js';
+import Dialog from '@components/ui/Dialog.js';
 import { cn } from '@utils/Cn.js';
+import { UserCheck, Plus } from 'lucide-react';
 
 const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociate: boolean) => {
   const motorPolicyType = policyTypes.find((t) => t.name.toUpperCase() === 'MOTOR');
@@ -93,6 +99,8 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociat
       isClaimed: z.boolean(),
       claimDate: z.string(),
       claimAmount: z.string(),
+      isOutsourced: z.boolean().optional(),
+      associateAgentId: z.string().optional(),
     })
     .refine(
       (data) =>
@@ -125,6 +133,11 @@ function getInitialsColor(name: string) {
   return initialsColors[sum % initialsColors.length] ?? initialsColors[0] ?? '';
 }
 
+function normalizeForNameMatch(name: string): string {
+  if (!name) return '';
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function statusTone(
   status: string,
 ): 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' | 'inactive' {
@@ -152,6 +165,9 @@ export default function PolicyFormPage() {
     id: string;
     insuredName: string;
     mobileNumber: string | null;
+    isOutsourced?: boolean | undefined;
+    associateAgentId?: string | null | undefined;
+    associateAgent?: { name: string } | null | undefined;
   } | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -171,6 +187,13 @@ export default function PolicyFormPage() {
   const { data, isLoading } = usePolicyQuery(id ?? '');
   const createMutation = useCreatePolicyMutation();
   const updateMutation = useUpdatePolicyMutation();
+
+  const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
+  const [newAgentName, setNewAgentName] = useState('');
+  const [newAgentMobile, setNewAgentMobile] = useState('');
+
+  const { data: associateAgents = [] } = useAssociateAgentsQuery();
+  const createAgentMutation = useCreateAssociateAgentMutation();
 
   const queryParams = new URLSearchParams(location.search);
   const enquiryId = queryParams.get('enquiryId');
@@ -213,10 +236,21 @@ export default function PolicyFormPage() {
   const providers = providersRes?.data ?? [];
   const providerOptions = useMemo(
     () => [
-      { value: '', label: 'Select Insurance Provider (Optional)' },
+      { value: '', label: '-- None (Direct Policy) --' },
       ...providers.map((p) => ({ value: p.id, label: p.name })),
     ],
     [providers],
+  );
+
+  const associateAgentOptions = useMemo(
+    () => [
+      { value: '', label: '-- Select Associate Agent --' },
+      ...associateAgents.map((ag) => ({
+        value: ag.id,
+        label: `${ag.name} (${ag.mobileNumber})${ag.agencyName ? ` - ${ag.agencyName}` : ''}`,
+      })),
+    ],
+    [associateAgents],
   );
 
   const [isAssociate, setIsAssociate] = useState(false);
@@ -228,14 +262,14 @@ export default function PolicyFormPage() {
 
   const {
     register,
-    control,
     handleSubmit,
-    reset,
     watch,
+    reset,
+    control,
     setValue,
     getValues,
     formState: { errors },
-  } = useForm<FormValues>({
+  } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
       insuredName: '',
@@ -254,6 +288,8 @@ export default function PolicyFormPage() {
       isClaimed: false,
       claimDate: '',
       claimAmount: '',
+      isOutsourced: false,
+      associateAgentId: '',
     },
   });
 
@@ -274,6 +310,13 @@ export default function PolicyFormPage() {
   const watchReferenceNote = watch('referenceNote') || '';
   const watchMobileNumber = watch('mobileNumber') || '';
   const watchIsClaimed = watch('isClaimed');
+  const watchIsOutsourced = watch('isOutsourced');
+  const watchAssociateAgentId = watch('associateAgentId');
+
+  const selectedAssociateAgentObj = useMemo(
+    () => associateAgents.find((ag) => ag.id === watchAssociateAgentId),
+    [associateAgents, watchAssociateAgentId],
+  );
 
   const previewInitials = previewDisplayName ? initials(previewDisplayName) : '??';
   const previewDays = watchEndDate ? daysToExpiry(watchEndDate) : null;
@@ -378,7 +421,11 @@ export default function PolicyFormPage() {
   useEffect(() => {
     if (existing) {
       if (existing.renewalNotice) setPdfFileName('Renewal notice PDF uploaded');
-      setIsAssociate(!!existing.insuredPersonName);
+      const isAssociateCheck =
+        !!existing.insuredPersonName &&
+        normalizeForNameMatch(existing.insuredPersonName) !==
+          normalizeForNameMatch(existing.client.insuredName);
+      setIsAssociate(isAssociateCheck);
       reset({
         insuredName: existing.client.insuredName,
         mobileNumber: existing.client.mobileNumber
@@ -398,6 +445,8 @@ export default function PolicyFormPage() {
         isClaimed: existing.isClaimed ?? false,
         claimDate: existing.claimDate ? existing.claimDate.slice(0, 10) : '',
         claimAmount: existing.claimAmount != null ? String(existing.claimAmount) : '',
+        isOutsourced: existing.isOutsourced ?? existing.client.isOutsourced ?? false,
+        associateAgentId: existing.associateAgentId ?? existing.client.associateAgentId ?? '',
       });
     } else if (enquiry && !isEdit && !isClientLookupLoading) {
       // Populate name/mobile from found client if available, otherwise from enquiry
@@ -421,6 +470,8 @@ export default function PolicyFormPage() {
         isClaimed: false,
         claimDate: '',
         claimAmount: '',
+        isOutsourced: foundClient?.isOutsourced ?? false,
+        associateAgentId: foundClient?.associateAgentId ?? '',
       });
     } else if (!isEdit && !enquiry) {
       setIsAssociate(false);
@@ -441,6 +492,8 @@ export default function PolicyFormPage() {
         isClaimed: false,
         claimDate: '',
         claimAmount: '',
+        isOutsourced: false,
+        associateAgentId: '',
       });
       setPdfFileName(null);
     }
@@ -554,12 +607,37 @@ export default function PolicyFormPage() {
     }
   }
 
+
+
+  const handleQuickAddAgent = async () => {
+    if (!newAgentName.trim() || !newAgentMobile.trim()) {
+      toast.error('Agent Name and Mobile are required.');
+      return;
+    }
+    try {
+      const res = await createAgentMutation.mutateAsync({
+        name: newAgentName.trim(),
+        mobileNumber: newAgentMobile.trim(),
+      });
+      toast.success(`Associate agent "${newAgentName}" created.`);
+      setValue('associateAgentId', res.data.id);
+      setIsAddAgentOpen(false);
+      setNewAgentName('');
+      setNewAgentMobile('');
+    } catch (err) {
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(axiosError.response?.data?.message ?? axiosError.message ?? 'Failed to add agent.');
+    }
+  };
+
   function onSubmit(form: FormValues) {
     const mn = form.mobileNumber.trim();
     const payload: Record<string, unknown> = {
       insuredName: form.insuredName.trim(),
       policyType: form.policyType,
       endDate: form.endDate,
+      isOutsourced: form.isOutsourced,
+      associateAgentId: form.isOutsourced && form.associateAgentId ? form.associateAgentId : null,
     };
     if (selectedClientId) payload.clientId = selectedClientId;
     if (mn) payload.mobileNumber = `+91${mn.replace(/\D/g, '').slice(-10)}`;
@@ -789,6 +867,20 @@ export default function PolicyFormPage() {
                           Drafting Registry
                         </span>
 
+                        {isAssociate && watchInsuredName && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300 backdrop-blur-sm shadow-sm">
+                            <Users size={11} className="shrink-0 text-sky-500" />
+                            Client: {watchInsuredName}
+                          </span>
+                        )}
+
+                        {watchIsOutsourced && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-purple-500/25 bg-purple-500/10 text-purple-700 dark:text-purple-300 backdrop-blur-sm shadow-sm">
+                            <UserCheck size={11} className="shrink-0 text-purple-500" />
+                            Outsourced{selectedAssociateAgentObj ? `: ${selectedAssociateAgentObj.name}` : ''}
+                          </span>
+                        )}
+
                         {previewPolicyTypeName && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-line bg-surface/50 text-ink-soft backdrop-blur-sm shadow-sm">
                             {previewPolicyTypeName}
@@ -872,6 +964,94 @@ export default function PolicyFormPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
                   {/* Link Client + Client Information */}
                   <div className="space-y-4">
+                    {/* Outsource / Associate Agent Card — placed above Link to Existing Client */}
+                    <div className="space-y-3 bg-surface border border-line p-5 sm:p-6 rounded-2xl shadow-sm text-left">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-line">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950/45 text-purple-700 dark:text-purple-300 border border-purple-200/40 shrink-0">
+                          <UserCheck size={14} />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-ink leading-none">
+                            Policy Ownership & Outsource
+                          </h3>
+                          <p className="text-[11px] text-ink-faint mt-1">
+                            Specify if this policy is outsourced to an associate agent
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-1 space-y-3">
+                        <Checkbox
+                          id="policy_is_outsourced"
+                          checked={!!watchIsOutsourced}
+                          onCheckedChange={(checked) => {
+                            setValue('isOutsourced', checked);
+                            if (!checked) {
+                              setValue('associateAgentId', '');
+                            }
+                            if (selectedClientObj && selectedClientObj.isOutsourced !== checked) {
+                              setSelectedClientId(null);
+                              setSelectedClientObj(null);
+                              setValue('insuredName', '');
+                              setValue('mobileNumber', '');
+                            }
+                          }}
+                          label={
+                            <span className="flex items-center gap-1.5 font-semibold text-ink text-sm">
+                              <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
+                              Outsourced / Other Agent Policy
+                            </span>
+                          }
+                        />
+
+                        {watchIsOutsourced && (
+                          <div className="pl-7 space-y-3 pt-1">
+                            <div className="flex items-end gap-2">
+                              <div className="flex-1">
+                                <Select
+                                  label="Select Associate Agent"
+                                  value={watchAssociateAgentId ?? ''}
+                                  onValueChange={(val) => {
+                                    setValue('associateAgentId', val);
+                                    if (selectedClientObj && selectedClientObj.associateAgentId !== val) {
+                                      setSelectedClientId(null);
+                                      setSelectedClientObj(null);
+                                      setValue('insuredName', '');
+                                      setValue('mobileNumber', '');
+                                    }
+                                  }}
+                                  options={associateAgentOptions}
+                                  error={errors.associateAgentId?.message}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                title="Add Associate Agent"
+                                className="shrink-0 flex h-11 w-11 items-center justify-center p-0 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10 active:scale-95 transition-all rounded-xl"
+                                onClick={() => {
+                                  setIsAddAgentOpen(true);
+                                }}
+                              >
+                                <Plus size={18} />
+                              </Button>
+                            </div>
+                            {watchAssociateAgentId ? (
+                              <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                                Filtering clients registered under selected Associate Agent.
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                                Select an Associate Agent to filter their clients in the search below.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Link to Existing Client — filtered by Outsourced & Associate Agent selection */}
                     <ClientSearch
                       selectedClient={selectedClientObj}
                       onSelect={(client) => {
@@ -880,6 +1060,12 @@ export default function PolicyFormPage() {
                           setSelectedClientObj(client);
                           setValue('insuredName', client.insuredName);
                           setValue('mobileNumber', client.mobileNumber?.replace('+91', '') ?? '');
+                          if (client.isOutsourced !== undefined) {
+                            setValue('isOutsourced', client.isOutsourced);
+                          }
+                          if (client.associateAgentId) {
+                            setValue('associateAgentId', client.associateAgentId);
+                          }
                         } else {
                           setSelectedClientId(null);
                           setSelectedClientObj(null);
@@ -888,6 +1074,8 @@ export default function PolicyFormPage() {
                         }
                       }}
                       label={isEdit ? 'Attached Client' : 'Link to Existing Client'}
+                      isOutsourced={!!watchIsOutsourced}
+                      associateAgentId={watchAssociateAgentId ? watchAssociateAgentId : undefined}
                     />
 
                     <div className="space-y-5 bg-surface border border-line p-5 sm:p-6 rounded-2xl shadow-sm text-left">
@@ -931,32 +1119,26 @@ export default function PolicyFormPage() {
                         </h3>
                       </div>
 
-                      <div className="flex gap-6">
-                        <label className="flex items-center gap-2 text-sm font-medium text-ink cursor-pointer">
-                          <input
-                            type="radio"
-                            name="insured_type"
-                            checked={!isAssociate}
-                            onChange={() => {
-                              setIsAssociate(false);
-                              setValue('insuredPersonName', '');
-                            }}
-                            className="w-4 h-4 text-indigo-600 border-line-strong focus:ring-indigo-500"
-                          />
-                          <span>Self (Policyholder)</span>
-                        </label>
-                        <label className="flex items-center gap-2 text-sm font-medium text-ink cursor-pointer">
-                          <input
-                            type="radio"
-                            name="insured_type"
-                            checked={isAssociate}
-                            onChange={() => {
-                              setIsAssociate(true);
-                            }}
-                            className="w-4 h-4 text-indigo-600 border-line-strong focus:ring-indigo-500"
-                          />
-                          <span>Associate (Family Member)</span>
-                        </label>
+                      <div className="flex flex-wrap gap-6">
+                        <Radio
+                          id="insured_type_self"
+                          name="insured_type"
+                          checked={!isAssociate}
+                          onCheckedChange={() => {
+                            setIsAssociate(false);
+                            setValue('insuredPersonName', '');
+                          }}
+                          label="Self (Policyholder)"
+                        />
+                        <Radio
+                          id="insured_type_associate"
+                          name="insured_type"
+                          checked={isAssociate}
+                          onCheckedChange={() => {
+                            setIsAssociate(true);
+                          }}
+                          label="Associate (Family Member)"
+                        />
                       </div>
 
                       {isAssociate && (
@@ -1293,6 +1475,24 @@ export default function PolicyFormPage() {
                           </div>
 
                           <div className="flex flex-wrap items-center gap-1.5">
+                            {isAssociate && watchInsuredName && (
+                              <Badge
+                                tone="neutral"
+                                className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 font-semibold normal-case tracking-normal flex items-center gap-1"
+                              >
+                                <Users size={10} className="text-sky-500 shrink-0" />
+                                Client: {watchInsuredName}
+                              </Badge>
+                            )}
+                            {watchIsOutsourced && (
+                              <Badge
+                                tone="neutral"
+                                className="border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-semibold normal-case tracking-normal flex items-center gap-1"
+                              >
+                                <UserCheck size={10} className="text-purple-500 shrink-0" />
+                                Outsourced{selectedAssociateAgentObj ? `: ${selectedAssociateAgentObj.name}` : ''}
+                              </Badge>
+                            )}
                             <Badge tone="neutral">{previewPolicyTypeName}</Badge>
                             {previewProviderName && (
                               <Badge
@@ -1419,6 +1619,44 @@ export default function PolicyFormPage() {
           </div>
         </IonFooter>
       )}
+
+      {/* Quick Add Associate Agent Dialog */}
+      <Dialog
+        open={isAddAgentOpen}
+        onClose={() => setIsAddAgentOpen(false)}
+        title="Quick Add Associate Agent"
+        description="Add a new external partner agent to link to this policy."
+      >
+        <div className="space-y-4 text-left">
+          <Input
+            label="Agent Name"
+            placeholder="e.g. John Doe"
+            value={newAgentName}
+            onChange={(e) => setNewAgentName(e.target.value)}
+          />
+          <Input
+            label="Mobile Number"
+            placeholder="e.g. 9876543210"
+            value={newAgentMobile}
+            onChange={(e) => setNewAgentMobile(e.target.value)}
+          />
+          <div className="flex justify-end gap-2 pt-4 border-t border-line/45 mt-4">
+            <Button variant="outline" type="button" onClick={() => setIsAddAgentOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="button"
+              loading={createAgentMutation.isPending}
+              onClick={() => {
+                void handleQuickAddAgent();
+              }}
+            >
+              Add Agent
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </IonPage>
   );
 }

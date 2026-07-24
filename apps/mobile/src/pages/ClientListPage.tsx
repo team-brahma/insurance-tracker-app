@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearch } from '@hooks/useSearch.js';
-import { Search, Plus, Pencil, Trash2, ChevronRight, Users, Phone, Calendar } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, ChevronRight, Users, Phone, Calendar, UserCheck, X } from 'lucide-react';
 import { useHistory } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import AppShellPage from '@components/layout/AppShellPage.js';
@@ -10,7 +10,9 @@ import SurfaceCard from '@components/ui/SurfaceCard.js';
 import Badge from '@components/ui/Badge.js';
 import AlertDialog from '@components/ui/AlertDialog.js';
 import Button from '@components/ui/Button.js';
+import Select from '@components/ui/Select.js';
 import { useInfiniteClientsQuery, useDeleteClientMutation } from '@features/clients/index.js';
+import { useAssociateAgentsQuery } from '@features/associateAgents/index.js';
 import type { ClientWithPolicies } from '@features/clients/types/index.js';
 import { formatDate, initials } from '@repo/utils';
 import { cn } from '@utils/Cn.js';
@@ -40,26 +42,48 @@ const cardVariant = {
   show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 380, damping: 28 } },
 };
 
-function getEdgeColor(client: ClientWithPolicies) {
-  if (client.policies && client.policies.length > 0) return 'bg-green-edge';
-  return 'bg-gray-edge';
-}
-
 export default function ClientListPage() {
   const history = useHistory();
   const { searchText, debouncedSearchText, setSearchText, clearSearch } = useSearch();
   const [deleteTarget, setDeleteTarget] = useState<ClientWithPolicies | null>(null);
+  const [filterMode, setFilterMode] = useState<'all' | 'direct' | 'outsourced'>('all');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+
+  const { data: associateAgents = [] } = useAssociateAgentsQuery();
+
+  const associateAgentOptions = useMemo(
+    () => [
+      { value: '', label: '-- All Associate Agents --' },
+      ...associateAgents.map((ag) => ({
+        value: ag.id,
+        label: ag.name,
+      })),
+    ],
+    [associateAgents],
+  );
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const params = useMemo(() => {
-    const p: Record<string, string> = {};
+    const p: Record<string, unknown> = {};
     if (debouncedSearchText) p.search = debouncedSearchText;
+    if (filterMode === 'direct') {
+      p.isOutsourced = false;
+      p.is_outsourced = false;
+    }
+    if (filterMode === 'outsourced') {
+      p.isOutsourced = true;
+      p.is_outsourced = true;
+    }
+    if (selectedAgentId) {
+      p.associateAgentId = selectedAgentId;
+      p.associate_agent_id = selectedAgentId;
+    }
     return p;
-  }, [debouncedSearchText]);
+  }, [debouncedSearchText, filterMode, selectedAgentId]);
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
-    useInfiniteClientsQuery(params);
+    useInfiniteClientsQuery(params as never);
 
   const allClients = useMemo(
     () => (data?.pages.flatMap((p) => p.data) ?? []) as ClientWithPolicies[],
@@ -117,7 +141,7 @@ export default function ClientListPage() {
       }
       hero={
         <div className="space-y-3">
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <div className="flex h-11 flex-1 items-center gap-2.5 rounded-2xl border border-line bg-paper/90 px-4 shadow-inner transition-all focus-within:border-line-strong focus-within:shadow-none">
               <Search size={15} className="shrink-0 text-ink-faint" />
               <input
@@ -130,14 +154,75 @@ export default function ClientListPage() {
               />
               {searchText && (
                 <button
+                  type="button"
                   onClick={clearSearch}
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-line-strong/20 text-ink-faint hover:text-ink transition-colors text-xs cursor-pointer"
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-ink-faint hover:bg-surface hover:text-ink transition cursor-pointer"
+                  aria-label="Clear search"
                 >
-                  ✕
+                  <X size={13} />
                 </button>
               )}
             </div>
+
+            {/* Filter modes */}
+            <div className="flex items-center gap-1 bg-paper/80 p-1 rounded-2xl border border-line shrink-0 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterMode('all');
+                  setSelectedAgentId('');
+                }}
+                className={cn(
+                  'px-3 py-1.5 rounded-xl transition-all cursor-pointer',
+                  filterMode === 'all' && !selectedAgentId
+                    ? 'bg-surface text-ink shadow-sm border border-line'
+                    : 'text-ink-faint hover:text-ink',
+                )}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterMode('direct');
+                  setSelectedAgentId('');
+                }}
+                className={cn(
+                  'px-3 py-1.5 rounded-xl transition-all cursor-pointer',
+                  filterMode === 'direct'
+                    ? 'bg-surface text-ink shadow-sm border border-line'
+                    : 'text-ink-faint hover:text-ink',
+                )}
+              >
+                Direct
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterMode('outsourced')}
+                className={cn(
+                  'px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1',
+                  filterMode === 'outsourced'
+                    ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 shadow-sm border border-purple-500/30'
+                    : 'text-ink-faint hover:text-ink',
+                )}
+              >
+                <UserCheck size={12} />
+                <span>Outsourced</span>
+              </button>
+            </div>
           </div>
+
+          {filterMode === 'outsourced' && associateAgents.length > 0 && (
+            <div className="flex items-center gap-2 pt-1 text-xs">
+              <span className="text-ink-faint font-semibold">Filter by Associate Agent:</span>
+              <Select
+                value={selectedAgentId}
+                onValueChange={(val) => setSelectedAgentId(val)}
+                options={associateAgentOptions}
+                className="h-8 text-xs min-w-[180px]"
+              />
+            </div>
+          )}
         </div>
       }
     >
@@ -162,7 +247,7 @@ export default function ClientListPage() {
 
         {allClients.length > 0 && (
           <motion.div
-            key={debouncedSearchText}
+            key={`${debouncedSearchText}-${filterMode}-${selectedAgentId}`}
             variants={stagger}
             initial="hidden"
             animate="show"
@@ -178,14 +263,7 @@ export default function ClientListPage() {
                       history.push(`/clients/${client.id}`);
                     }}
                   >
-                    <div className="flex h-full items-stretch">
-                      <div
-                        className={cn(
-                          'w-1.5 flex-none transition-all duration-300 group-hover:w-2',
-                          getEdgeColor(client),
-                        )}
-                      />
-                      <div className="flex min-w-0 flex-1 flex-col justify-between">
+                    <div className="flex h-full min-w-0 flex-1 flex-col justify-between">
                         <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3">
                           <div className="flex items-start gap-3">
                             <div
@@ -207,11 +285,16 @@ export default function ClientListPage() {
                           </div>
 
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {client.isOutsourced && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 ring-1 ring-inset ring-purple-500/20">
+                                <UserCheck size={10} />
+                                <span>
+                                  Outsourced{client.associateAgent ? `: ${client.associateAgent.name}` : ''}
+                                </span>
+                              </span>
+                            )}
                             <Badge tone="neutral">
                               {policyCount} {policyCount === 1 ? 'Policy' : 'Policies'}
-                            </Badge>
-                            <Badge tone={policyCount > 0 ? 'renewed' : 'pending'} dot>
-                              {policyCount > 0 ? 'Active Client' : 'No Active Policies'}
                             </Badge>
                           </div>
                         </div>
@@ -267,8 +350,7 @@ export default function ClientListPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </SurfaceCard>
+                    </SurfaceCard>
                 </motion.div>
               );
             })}

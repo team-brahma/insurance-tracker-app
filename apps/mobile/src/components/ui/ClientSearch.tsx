@@ -1,17 +1,33 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, X, Check, Loader2 } from 'lucide-react';
+import { Search, X, Check, Loader2, UserCheck } from 'lucide-react';
 import { cn } from '@utils/Cn.js';
 import { useDebounce } from '@repo/hooks';
 import { useClientsSearchQuery } from '@features/policies/hooks/useClientsSearchQuery.js';
 import type { Client } from '@repo/types';
 
 export interface ClientSearchProps {
-  selectedClient?: { id: string; insuredName: string; mobileNumber: string | null } | null;
+  selectedClient?: {
+    id: string;
+    insuredName: string;
+    mobileNumber: string | null;
+    isOutsourced?: boolean | undefined;
+    associateAgentId?: string | null | undefined;
+    associateAgent?: { name: string } | null | undefined;
+  } | null | undefined;
   onSelect: (
-    client: { id: string; insuredName: string; mobileNumber: string | null } | null,
+    client: {
+      id: string;
+      insuredName: string;
+      mobileNumber: string | null;
+      isOutsourced?: boolean | undefined;
+      associateAgentId?: string | null | undefined;
+      associateAgent?: { name: string } | null | undefined;
+    } | null,
   ) => void;
-  disabled?: boolean;
-  label?: string;
+  disabled?: boolean | undefined;
+  label?: string | undefined;
+  isOutsourced?: boolean | undefined;
+  associateAgentId?: string | undefined;
 }
 
 export default function ClientSearch({
@@ -19,6 +35,8 @@ export default function ClientSearch({
   onSelect,
   disabled,
   label,
+  isOutsourced,
+  associateAgentId,
 }: ClientSearchProps) {
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -30,13 +48,21 @@ export default function ClientSearch({
   const debouncedTerm = useDebounce(inputValue.trim(), 500);
 
   const isSearching = isOpen && inputValue.length >= 3;
-  const { data: clients = [], isLoading } = useClientsSearchQuery(debouncedTerm, isSearching);
+  const { data: clients = [], isLoading } = useClientsSearchQuery(
+    debouncedTerm,
+    isSearching,
+    isOutsourced,
+    associateAgentId,
+  );
 
   useEffect(() => {
-    if (debouncedTerm.length >= 3) setIsOpen(true);
-    else setIsOpen(false);
+    if (!selectedClient && debouncedTerm.length >= 3) {
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
     if (debouncedTerm) setHighlightedIndex(-1);
-  }, [debouncedTerm]);
+  }, [debouncedTerm, selectedClient]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -60,8 +86,8 @@ export default function ClientSearch({
   }, []);
 
   const handleFocus = useCallback(() => {
-    if (inputValue.length >= 3) setIsOpen(true);
-  }, [inputValue]);
+    if (!selectedClient && inputValue.length >= 3) setIsOpen(true);
+  }, [inputValue, selectedClient]);
 
   const handleSelect = useCallback(
     (client: Client) => {
@@ -69,8 +95,11 @@ export default function ClientSearch({
         id: client.id,
         insuredName: client.insuredName,
         mobileNumber: client.mobileNumber,
+        isOutsourced: client.isOutsourced,
+        associateAgentId: client.associateAgentId,
+        associateAgent: client.associateAgent,
       });
-      setInputValue(client.insuredName);
+      setInputValue('');
       setIsOpen(false);
     },
     [onSelect],
@@ -118,22 +147,28 @@ export default function ClientSearch({
         {selectedClient ? (
           <div
             className={cn(
-              'flex items-center gap-2 h-11 px-3 rounded-xl border bg-paper',
+              'flex flex-wrap sm:flex-nowrap items-center gap-2 min-h-11 py-2 px-3 rounded-xl border bg-paper',
               disabled ? 'opacity-60 pointer-events-none' : 'border-line-strong',
             )}
           >
             <Check size={14} className="text-green-edge shrink-0" />
-            <span className="text-sm text-ink font-medium truncate">
+            <span className="text-sm text-ink font-medium truncate shrink min-w-0 max-w-[120px] sm:max-w-xs">
               {selectedClient.insuredName}
             </span>
-            <span className="text-xs text-ink-faint font-mono shrink-0">
+            {selectedClient.isOutsourced && selectedClient.associateAgent?.name && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200/60 shrink-0 flex items-center gap-1">
+                <UserCheck size={10} />
+                {selectedClient.associateAgent.name}
+              </span>
+            )}
+            <span className="text-xs text-ink-faint font-mono shrink-0 ml-auto sm:ml-0">
               {selectedClient.mobileNumber ? `· ${selectedClient.mobileNumber}` : '· No phone'}
             </span>
             {!disabled && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="ml-auto text-ink-faint hover:text-ink transition-colors cursor-pointer p-0.5"
+                className="ml-auto sm:ml-1 text-ink-faint hover:text-ink transition-colors cursor-pointer p-1 rounded-lg hover:bg-surface/80"
                 aria-label="Clear client selection"
               >
                 <X size={15} />
@@ -157,7 +192,13 @@ export default function ClientSearch({
                 }, 200);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search existing clients…"
+              placeholder={
+                isOutsourced
+                  ? associateAgentId
+                    ? 'Search associate agent clients…'
+                    : 'Select associate agent above to search…'
+                  : 'Search existing clients…'
+              }
               disabled={disabled}
               className={cn(
                 'w-full h-11 pl-9 pr-9 rounded-xl border bg-surface text-sm text-ink',
@@ -171,12 +212,21 @@ export default function ClientSearch({
               aria-autocomplete="list"
               autoComplete="off"
             />
-            {showSpinner && (
+            {showSpinner ? (
               <Loader2
                 size={14}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate animate-spin"
               />
-            )}
+            ) : inputValue.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setInputValue('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-ink-faint hover:bg-paper hover:text-ink transition cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X size={13} />
+              </button>
+            ) : null}
           </div>
         )}
 
@@ -200,13 +250,20 @@ export default function ClientSearch({
                         setHighlightedIndex(idx);
                       }}
                       className={cn(
-                        'px-3 py-2.5 flex items-center justify-between cursor-pointer text-sm transition-colors',
+                        'px-3 py-2.5 flex items-center justify-between gap-2 cursor-pointer text-sm transition-colors',
                         idx === highlightedIndex ? 'bg-paper' : 'hover:bg-paper',
                       )}
                     >
-                      <span className="text-ink font-medium">{client.insuredName}</span>
-                      <span className="text-xs text-ink-faint font-mono shrink-0 ml-2">
-                        {client.mobileNumber ? `· ${client.mobileNumber}` : '· No phone'}
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-ink font-medium truncate">{client.insuredName}</span>
+                        {client.isOutsourced && client.associateAgent?.name && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200/50 shrink-0">
+                            {client.associateAgent.name}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-ink-faint font-mono shrink-0">
+                        {client.mobileNumber ? client.mobileNumber : 'No phone'}
                       </span>
                     </li>
                   ))}
@@ -225,8 +282,9 @@ export default function ClientSearch({
 
       {!selectedClient && (
         <p className="text-[11px] text-ink-faint mt-2">
-          Type at least 3 characters to search existing clients, or fill the fields below to create
-          a new one.
+          {isOutsourced
+            ? 'Type at least 3 characters to search clients belonging to this Associate Agent.'
+            : 'Type at least 3 characters to search existing clients, or fill the fields below to create a new one.'}
         </p>
       )}
     </section>

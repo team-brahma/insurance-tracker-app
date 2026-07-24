@@ -10,6 +10,7 @@ import {
   Tag,
   Building2,
   Upload,
+  UserCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MotionStyle } from 'framer-motion';
@@ -48,6 +49,7 @@ export default function Sidebar({
           { label: 'Enquiries', path: '/enquiries', icon: HelpCircle },
           { label: 'Policy Types', path: '/policy-types', icon: Tag },
           { label: 'Providers', path: '/insurance-providers', icon: Building2 },
+          { label: 'Associate Agents', path: '/associate-agents', icon: UserCheck },
           { label: 'Bulk Import', path: '/bulk-import', icon: Upload },
           { label: 'Settings', path: '/settings', icon: Settings },
         ];
@@ -60,6 +62,7 @@ export default function Sidebar({
     if (path === '/enquiries') return currentPath.startsWith('/enquiries');
     if (path === '/policy-types') return currentPath.startsWith('/policy-types');
     if (path === '/insurance-providers') return currentPath.startsWith('/insurance-providers');
+    if (path === '/associate-agents') return currentPath.startsWith('/associate-agents');
     if (path === '/bulk-import') return currentPath.startsWith('/bulk-import');
     return currentPath === path;
   }

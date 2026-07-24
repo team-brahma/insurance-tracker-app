@@ -69,13 +69,11 @@ process.on('SIGTERM', () => {
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
-  process.exit(1);
+  console.error('[SERVER] Uncaught exception captured:', error);
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled rejection:', reason);
-  process.exit(1);
+  console.error('[SERVER] Unhandled rejection captured:', reason);
 });
 
 void start();

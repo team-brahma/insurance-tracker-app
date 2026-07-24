@@ -26,13 +26,21 @@ export interface NotificationEnquiryItem {
 
 export type NotificationItem = NotificationPolicyItem | NotificationEnquiryItem;
 
-export interface NotificationsData {
-  policies: NotificationPolicyItem[];
-  enquiries: NotificationEnquiryItem[];
-  items: NotificationItem[];
+export interface NotificationCounts {
   totalCount: number;
+  policyCount: number;
+  enquiryCount: number;
 }
 
-export interface NotificationCountData {
-  totalCount: number;
+export interface NotificationsData {
+  items: NotificationItem[];
+  counts: NotificationCounts;
+}
+
+export interface NotificationCountData extends NotificationCounts {}
+
+export interface NotificationListParams {
+  page?: number;
+  limit?: number;
+  type?: 'all' | 'policies' | 'enquiries';
 }

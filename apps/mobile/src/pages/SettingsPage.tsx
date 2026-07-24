@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Settings, AlarmClock, Bell, Palette, Shield } from 'lucide-react';
+import { useHistory } from 'react-router-dom';
+import { Settings, AlarmClock, Bell, Palette, Shield, UserCheck, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AppShellPage from '@components/layout/AppShellPage.js';
 import SurfaceCard from '@components/ui/SurfaceCard.js';
 import Select from '@components/ui/Select.js';
+import Button from '@components/ui/Button.js';
 import PageLoader from '@components/ui/PageLoader.js';
 import {
   useSettingsQuery,
@@ -46,6 +48,7 @@ const timeOptions = Array.from({ length: 24 }).flatMap((_, h) => {
 });
 
 export default function SettingsPage() {
+  const history = useHistory();
   const { data: settingsData, isLoading } = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
   const setStoredTheme = useThemeStore((s) => s.setTheme);
@@ -170,21 +173,39 @@ export default function SettingsPage() {
           {/* Appearance */}
           <SurfaceCard
             eyebrow="Workspace"
-            title="Appearance"
-            description="Choose how the app should render throughout the workday."
+            title="Appearance & Master Data"
+            description="Choose how the app renders and manage associate agent profiles."
           >
-            <SettingsRow
-              icon={<Palette size={16} className="text-violet-500" />}
-              title="Application theme"
-              description="Switch between light, dark, or system sync."
-            >
-              <Select
-                value={theme}
-                onValueChange={saveTheme}
-                options={themeOptions}
-                className="w-32"
-              />
-            </SettingsRow>
+            <div className="space-y-3">
+              <SettingsRow
+                icon={<Palette size={16} className="text-violet-500" />}
+                title="Application theme"
+                description="Switch between light, dark, or system sync."
+              >
+                <Select
+                  value={theme}
+                  onValueChange={saveTheme}
+                  options={themeOptions}
+                  className="w-32"
+                />
+              </SettingsRow>
+
+              <SettingsRow
+                icon={<UserCheck size={16} className="text-purple-500" />}
+                title="Associate Agents"
+                description="Manage external partner agents who outsource policies to you."
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => history.push('/associate-agents')}
+                  className="gap-1 font-semibold"
+                >
+                  <span>Manage</span>
+                  <ChevronRight size={14} />
+                </Button>
+              </SettingsRow>
+            </div>
           </SurfaceCard>
         </motion.div>
       </motion.div>

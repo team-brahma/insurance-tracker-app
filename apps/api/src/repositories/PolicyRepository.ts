@@ -7,6 +7,8 @@ export interface PolicyFilters {
   policyType?: string | string[]; // This holds policyTypeId(s)
   renewalStatus?: RenewalStatus | RenewalStatus[];
   urgency?: 'overdue' | 'due7' | 'due30' | 'future';
+  isOutsourced?: boolean;
+  associateAgentId?: string;
   page?: number;
   limit?: number;
 }
@@ -28,6 +30,7 @@ export const policyRepository = {
           { insuredPersonName: { contains: filters.search } },
           { vehicleNumber: { contains: filters.search } },
           { policyNumber: { contains: filters.search } },
+          { associateAgent: { name: { contains: filters.search } } },
         ],
       });
     }
@@ -46,6 +49,14 @@ export const policyRepository = {
       } else {
         AND.push({ renewalStatus: filters.renewalStatus });
       }
+    }
+
+    if (filters.isOutsourced !== undefined) {
+      AND.push({ isOutsourced: filters.isOutsourced });
+    }
+
+    if (filters.associateAgentId) {
+      AND.push({ associateAgentId: filters.associateAgentId });
     }
 
     const baseWhereForUrgency = { ...where };
@@ -107,7 +118,12 @@ export const policyRepository = {
       await Promise.all([
         db.policy.findMany({
           where,
-          include: { client: true, policyType: true, insuranceProvider: true },
+          include: {
+            client: { include: { associateAgent: true } },
+            policyType: true,
+            insuranceProvider: true,
+            associateAgent: true,
+          },
           orderBy: { createdAt: 'desc' },
           skip,
           take: limit,
@@ -148,7 +164,12 @@ export const policyRepository = {
     const db = getDb();
     return db.policy.findFirst({
       where: { id, agentId },
-      include: { client: true, policyType: true, insuranceProvider: true },
+      include: {
+        client: { include: { associateAgent: true } },
+        policyType: true,
+        insuranceProvider: true,
+        associateAgent: true,
+      },
     });
   },
 
@@ -156,7 +177,12 @@ export const policyRepository = {
     const db = getDb();
     return db.policy.findUnique({
       where: { id },
-      include: { client: true, policyType: true, insuranceProvider: true },
+      include: {
+        client: { include: { associateAgent: true } },
+        policyType: true,
+        insuranceProvider: true,
+        associateAgent: true,
+      },
     });
   },
 
@@ -180,6 +206,8 @@ export const policyRepository = {
       claimDate?: Date | null;
       claimAmount?: number | null;
       insuredPersonName?: string | null;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
     },
   ) {
     const db = getDb();
@@ -204,8 +232,15 @@ export const policyRepository = {
           claimDate: data.claimDate ?? null,
           claimAmount: data.claimAmount ?? null,
           insuredPersonName: data.insuredPersonName ?? null,
+          isOutsourced: data.isOutsourced ?? false,
+          associateAgentId: data.associateAgentId ?? null,
         },
-        include: { client: true, policyType: true, insuranceProvider: true },
+        include: {
+          client: { include: { associateAgent: true } },
+          policyType: true,
+          insuranceProvider: true,
+          associateAgent: true,
+        },
       });
 
       await tx.policyStatusHistory.create({
@@ -231,7 +266,12 @@ export const policyRepository = {
       const updated = await tx.policy.update({
         where: { id },
         data,
-        include: { client: true, policyType: true, insuranceProvider: true },
+        include: {
+          client: { include: { associateAgent: true } },
+          policyType: true,
+          insuranceProvider: true,
+          associateAgent: true,
+        },
       });
 
       if (data.renewalStatus !== undefined && data.renewalStatus !== previousStatus) {
@@ -271,7 +311,12 @@ export const policyRepository = {
       const updated = await tx.policy.update({
         where: { id },
         data: updateData,
-        include: { client: true, policyType: true, insuranceProvider: true },
+        include: {
+          client: { include: { associateAgent: true } },
+          policyType: true,
+          insuranceProvider: true,
+          associateAgent: true,
+        },
       });
 
       if (previousStatus !== status) {

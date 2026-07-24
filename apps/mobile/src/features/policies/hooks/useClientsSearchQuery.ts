@@ -3,14 +3,29 @@ import { clientService } from '../services/ClientService.js';
 import type { Client } from '@repo/types';
 
 export const clientKeys = {
-  search: (term: string) => ['clients', 'search', term] as const,
+  search: (term: string, isOutsourced?: boolean, associateAgentId?: string) =>
+    ['clients', 'search', term, isOutsourced, associateAgentId] as const,
   find: (mobile: string, name: string) => ['clients', 'find', mobile, name] as const,
 };
 
-export function useClientsSearchQuery(searchTerm: string, enabled: boolean) {
+export function useClientsSearchQuery(
+  searchTerm: string,
+  enabled: boolean,
+  isOutsourced?: boolean,
+  associateAgentId?: string,
+) {
   return useQuery({
-    queryKey: clientKeys.search(searchTerm),
-    queryFn: () => clientService.list(searchTerm, 1, 10),
+    queryKey: clientKeys.search(searchTerm, isOutsourced, associateAgentId),
+    queryFn: () =>
+      clientService.list(
+        searchTerm,
+        1,
+        10,
+        undefined,
+        undefined,
+        isOutsourced,
+        associateAgentId,
+      ),
     enabled: enabled && searchTerm.length >= 3,
     staleTime: 30_000,
     gcTime: 60_000,

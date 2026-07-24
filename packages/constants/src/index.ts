@@ -50,7 +50,27 @@ export const RENEWAL_STATUS_LABELS: Record<string, string> = {
   RENEWED: 'Renewed',
   NOT_RENEWED: 'Not Renewed',
   LAPSED: 'Lapsed',
+  INACTIVE: 'Inactive',
 };
+
+/**
+ * Validates whether a given value is a structural, authentic policy number.
+ *
+ * Rules for an Authentic Policy Number:
+ * 1. Must be non-empty string.
+ * 2. Length must be between 3 and 50 characters (excluding spaces).
+ * 3. Must only contain valid policy number characters (letters, digits, hyphens, slashes, dots).
+ * 4. MUST CONTAIN AT LEAST ONE DIGIT (0-9). Plain text/status words (such as "DONE", "Dnoe",
+ *    "NOTRENEWED", "Pending", "Completed", "N/A", "Ok", etc.) do not contain numbers and are rejected.
+ */
+export function isAuthenticPolicyNumber(val: string | null | undefined): boolean {
+  if (!val) return false;
+  const cleaned = val.trim().replace(/\s+/g, '');
+  if (cleaned.length < 3 || cleaned.length > 50) return false;
+  if (!/^[a-zA-Z0-9/.-]+$/.test(cleaned)) return false;
+  if (!/\d/.test(cleaned)) return false;
+  return true;
+}
 
 export const URGENCY_LABELS: Record<string, string> = {
   overdue: 'Overdue',
@@ -111,7 +131,7 @@ export const VALIDATION = {
   GST: /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/,
   IFSC: /^[A-Z]{4}0[A-Z0-9]{6}$/,
   VEHICLE_NUMBER: /^[A-Z]{2}\d{1,2}[A-Z]{1,2}\d{1,4}$/,
-  NAME: /^[a-zA-Z\s.'-]+$/,
+  NAME: /^[a-zA-Z0-9\s.'\/+_&()-]+$/,
   PASSWORD_MIN_LENGTH: 6,
   POLICY_NUMBER: /^[a-zA-Z0-9/-]+$/,
   URL: /^https?:\/\/.+/,
@@ -127,9 +147,9 @@ export const VALIDATION_ERRORS = {
   GST: 'Enter a valid GSTIN',
   IFSC: 'Enter a valid IFSC code',
   VEHICLE_NUMBER: 'Enter a valid Indian vehicle number (e.g., MH12AB1234)',
-  NAME: 'Name must contain only letters, spaces, and basic punctuation',
+  NAME: 'Name can contain letters, numbers, spaces, and valid symbols (+ - / _ & . () \')',
   PASSWORD_MIN: `Password must be at least 6 characters`,
-  POLICY_NUMBER: 'Enter a valid policy number',
+  POLICY_NUMBER: 'Enter an authentic policy number (must contain numbers and valid policy characters)',
   URL: 'Enter a valid URL',
 } as const;
 

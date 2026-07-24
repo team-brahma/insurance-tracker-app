@@ -13,6 +13,7 @@ import {
   Sparkles,
   Tag,
   Building2,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from '@utils/Cn.js';
 import { useAuthStore } from '@features/auth/store/AuthStore.js';
@@ -54,7 +55,7 @@ export default function FloatingNav() {
   const user = useAuthStore((s) => s.user);
   const logoutMutation = useLogoutMutation();
   const { data: notifCountData } = useNotificationCountQuery();
-  const notifCount = notifCountData ?? 0;
+  const notifCount = typeof notifCountData === 'number' ? notifCountData : (notifCountData?.totalCount ?? 0);
   const currentPath = location.pathname;
   const userInitials = user ? initials(user.name) : '??';
 
@@ -118,6 +119,12 @@ export default function FloatingNav() {
       path: '/insurance-providers',
       icon: Building2,
       isActive: () => currentPath === '/insurance-providers',
+    },
+    {
+      label: 'Associate Agents',
+      path: '/associate-agents',
+      icon: UserCheck,
+      isActive: () => currentPath.startsWith('/associate-agents'),
     },
     {
       label: 'Settings',

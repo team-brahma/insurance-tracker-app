@@ -11,7 +11,7 @@ export function useNotificationCountQuery() {
       const res = await httpClient.get<ApiResponse<NotificationCountData>>(
         '/api/v1/notifications/count',
       );
-      return res.data.data.totalCount;
+      return res.data.data;
     },
     staleTime: 2 * 60 * 1000,
   });

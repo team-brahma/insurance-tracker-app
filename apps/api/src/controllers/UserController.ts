@@ -11,24 +11,61 @@ export const userController = {
     const { role } = assertAuthenticated(request);
     if (role !== 'ADMIN') throw new ForbiddenError('Admin access required');
 
+    const query = request.query as {
+      search?: string;
+      page?: string;
+      limit?: string;
+    };
+
+    const page = Math.max(1, parseInt(query.page || '1', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(query.limit || '20', 10)));
+    const search = query.search?.trim();
+
+    const where = search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            { email: { contains: search } },
+          ],
+        }
+      : {};
+
     const db = getDb();
-    const users = await db.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [total, users] = await Promise.all([
+      db.user.count({ where }),
+      db.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
 
     const formatted = users.map((u) => ({
       ...u,
       createdAt: u.createdAt.toISOString(),
     }));
 
-    return reply.code(HTTP_STATUS.OK).send({ success: true, data: formatted });
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return reply.code(HTTP_STATUS.OK).send({
+      success: true,
+      data: formatted,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+      },
+    });
   },
 
   async create(request: FastifyRequest, reply: FastifyReply) {

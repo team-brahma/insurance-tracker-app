@@ -1,6 +1,7 @@
-export { userService } from './services/UserService.js';
+export { userService, type UserListParams, type UserListMeta } from './services/UserService.js';
 export {
   useUsersQuery,
+  useInfiniteUsersQuery,
   useCreateUserMutation,
   useDeleteUserMutation,
 } from './hooks/useUsersQuery.js';

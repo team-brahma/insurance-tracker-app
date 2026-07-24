@@ -14,6 +14,7 @@ import {
   Sparkles,
   Tag,
   Upload,
+  UserCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { cn } from '@utils/Cn.js';
@@ -76,7 +77,7 @@ export default function BottomBar({ className = '' }: BottomBarProps) {
   const currentPath = location.pathname;
   const logoutMutation = useLogoutMutation();
   const { data: notifCountData } = useNotificationCountQuery();
-  const notifCount = notifCountData ?? 0;
+  const notifCount = typeof notifCountData === 'number' ? notifCountData : (notifCountData?.totalCount ?? 0);
   const userInitials = user ? initials(user.name) : '??';
 
   function handleLogout() {
@@ -269,6 +270,14 @@ export default function BottomBar({ className = '' }: BottomBarProps) {
                     navigate('/notifications');
                   }}
                   active={currentPath.startsWith('/notifications')}
+                />
+                <MoreItem
+                  icon={UserCheck}
+                  label="Associate Agents"
+                  onClick={() => {
+                    navigate('/associate-agents');
+                  }}
+                  active={currentPath.startsWith('/associate-agents')}
                 />
                 <MoreItem
                   icon={Upload}

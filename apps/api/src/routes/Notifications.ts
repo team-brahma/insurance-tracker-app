@@ -6,6 +6,7 @@ import { getDb } from '@database/index.js';
 import { HTTP_STATUS } from '@repo/constants';
 import { appConfig } from '@config/index.js';
 import { ForbiddenError } from '@errors/AppError.js';
+import { RenewalStatus, EnquiryStatus, type Prisma } from '@prisma/client';
 
 /**
  * Notification routes
@@ -20,82 +21,162 @@ const notificationRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/v1/notifications
    *   Returns upcoming policy renewals and enquiry follow-ups for the
    *   authenticated user, sorted by urgency (days left ascending).
+   *   Supports pagination (page, limit) and filtering by type (all, policies, enquiries).
    */
   fastify.get('/', { preHandler: [authenticate] }, async (request, reply) => {
     const { id } = assertAuthenticated(request);
+    const query = request.query as {
+      page?: string;
+      limit?: string;
+      type?: 'all' | 'policies' | 'enquiries';
+    };
+
+    const page = Math.max(1, parseInt(query.page || '1', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(query.limit || '20', 10)));
+    const filterType = query.type || 'all';
+
     const db = getDb();
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const maxDate = new Date(today);
     maxDate.setDate(maxDate.getDate() + 30);
 
-    const [policies, enquiries] = await Promise.all([
-      db.policy.findMany({
-        where: {
-          agentId: id,
-          renewalStatus: { in: ['PENDING', 'REMINDED'] },
-          endDate: { lte: maxDate },
-        },
-        include: { client: true, policyType: true },
-        orderBy: { endDate: 'asc' },
-      }),
-      db.enquiry.findMany({
-        where: {
-          agentId: id,
-          status: 'OPEN',
-          remindOn: { gte: today, lte: maxDate },
-        },
-        include: { policyType: true },
-        orderBy: { remindOn: 'asc' },
-      }),
-    ]);
-
     const msPerDay = 24 * 60 * 60 * 1000;
 
-    const policyItems = policies.map((p) => ({
-      id: p.id,
-      type: 'policy_renewal' as const,
-      clientName: p.client.insuredName,
-      policyType: p.policyType.name,
-      policyNumber: p.policyNumber,
-      premiumPrice: p.premiumPrice ? Number(p.premiumPrice) : null,
-      clientPhone: p.client.mobileNumber,
-      vehicleNumber: p.vehicleNumber,
-      endDate: p.endDate.toISOString(),
-      daysLeft: Math.round((p.endDate.getTime() - today.getTime()) / msPerDay),
-      renewalStatus: p.renewalStatus,
-    }));
+    const policyWhere: Prisma.PolicyWhereInput = {
+      agentId: id,
+      renewalStatus: { in: [RenewalStatus.PENDING, RenewalStatus.REMINDED] },
+      endDate: { lte: maxDate },
+    };
 
-    const enquiryItems = enquiries.map((e) => ({
-      id: e.id,
-      type: 'enquiry_followup' as const,
-      name: e.name,
-      mobileNumber: e.mobileNumber,
-      policyType: e.policyType.name,
-      referredBy: e.referredBy,
-      remindOn: e.remindOn!.toISOString(),
-      daysLeft: Math.round((e.remindOn!.getTime() - today.getTime()) / msPerDay),
-      createdAt: e.createdAt.toISOString(),
-    }));
+    const enquiryWhere: Prisma.EnquiryWhereInput = {
+      agentId: id,
+      status: EnquiryStatus.OPEN,
+      remindOn: { gte: today, lte: maxDate },
+    };
 
-    const allItems = [...policyItems, ...enquiryItems].sort((a, b) => a.daysLeft - b.daysLeft);
+    const [policyCount, enquiryCount] = await Promise.all([
+      db.policy.count({ where: policyWhere }),
+      db.enquiry.count({ where: enquiryWhere }),
+    ]);
+
+    let items: Array<any> = [];
+    let totalCount = 0;
+
+    if (filterType === 'policies') {
+      totalCount = policyCount;
+      const policies = await db.policy.findMany({
+        where: policyWhere,
+        include: { client: true, policyType: true },
+        orderBy: { endDate: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+      items = policies.map((p) => ({
+        id: p.id,
+        type: 'policy_renewal' as const,
+        clientName: p.client.insuredName,
+        policyType: p.policyType.name,
+        policyNumber: p.policyNumber,
+        premiumPrice: p.premiumPrice ? Number(p.premiumPrice) : null,
+        clientPhone: p.client.mobileNumber,
+        vehicleNumber: p.vehicleNumber,
+        endDate: p.endDate.toISOString(),
+        daysLeft: Math.round((p.endDate.getTime() - today.getTime()) / msPerDay),
+        renewalStatus: p.renewalStatus,
+      }));
+    } else if (filterType === 'enquiries') {
+      totalCount = enquiryCount;
+      const enquiries = await db.enquiry.findMany({
+        where: enquiryWhere,
+        include: { policyType: true },
+        orderBy: { remindOn: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+      items = enquiries.map((e) => ({
+        id: e.id,
+        type: 'enquiry_followup' as const,
+        name: e.name,
+        mobileNumber: e.mobileNumber,
+        policyType: e.policyType.name,
+        referredBy: e.referredBy,
+        remindOn: e.remindOn!.toISOString(),
+        daysLeft: Math.round((e.remindOn!.getTime() - today.getTime()) / msPerDay),
+        createdAt: e.createdAt.toISOString(),
+      }));
+    } else {
+      totalCount = policyCount + enquiryCount;
+      const [policies, enquiries] = await Promise.all([
+        db.policy.findMany({
+          where: policyWhere,
+          include: { client: true, policyType: true },
+          orderBy: { endDate: 'asc' },
+        }),
+        db.enquiry.findMany({
+          where: enquiryWhere,
+          include: { policyType: true },
+          orderBy: { remindOn: 'asc' },
+        }),
+      ]);
+
+      const policyItems = policies.map((p) => ({
+        id: p.id,
+        type: 'policy_renewal' as const,
+        clientName: p.client.insuredName,
+        policyType: p.policyType.name,
+        policyNumber: p.policyNumber,
+        premiumPrice: p.premiumPrice ? Number(p.premiumPrice) : null,
+        clientPhone: p.client.mobileNumber,
+        vehicleNumber: p.vehicleNumber,
+        endDate: p.endDate.toISOString(),
+        daysLeft: Math.round((p.endDate.getTime() - today.getTime()) / msPerDay),
+        renewalStatus: p.renewalStatus,
+      }));
+
+      const enquiryItems = enquiries.map((e) => ({
+        id: e.id,
+        type: 'enquiry_followup' as const,
+        name: e.name,
+        mobileNumber: e.mobileNumber,
+        policyType: e.policyType.name,
+        referredBy: e.referredBy,
+        remindOn: e.remindOn!.toISOString(),
+        daysLeft: Math.round((e.remindOn!.getTime() - today.getTime()) / msPerDay),
+        createdAt: e.createdAt.toISOString(),
+      }));
+
+      const allItems = [...policyItems, ...enquiryItems].sort((a, b) => a.daysLeft - b.daysLeft);
+      items = allItems.slice((page - 1) * limit, page * limit);
+    }
+
+    const totalPages = Math.ceil(totalCount / limit) || 1;
 
     return reply.code(HTTP_STATUS.OK).send({
       success: true,
       data: {
-        policies: policyItems,
-        enquiries: enquiryItems,
-        items: allItems,
-        totalCount: allItems.length,
+        items,
+        counts: {
+          totalCount: policyCount + enquiryCount,
+          policyCount,
+          enquiryCount,
+        },
+      },
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
       },
     });
   });
 
   /**
    * GET /api/v1/notifications/count
-   *   Lightweight endpoint — returns only the total count of upcoming
-   *   policy renewals and enquiry follow-ups. Used by navigation badges
-   *   to avoid fetching the full list on every page load.
+   *   Lightweight endpoint — returns counts of upcoming policy renewals and enquiry follow-ups.
    */
   fastify.get('/count', { preHandler: [authenticate] }, async (request, reply) => {
     const { id } = assertAuthenticated(request);
@@ -124,7 +205,11 @@ const notificationRoutes: FastifyPluginAsync = async (fastify) => {
 
     return reply.code(HTTP_STATUS.OK).send({
       success: true,
-      data: { totalCount: policyCount + enquiryCount },
+      data: {
+        totalCount: policyCount + enquiryCount,
+        policyCount,
+        enquiryCount,
+      },
     });
   });
 

@@ -1,15 +1,30 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userService } from '../services/UserService.js';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { userService, type UserListParams } from '../services/UserService.js';
 import type { RegisterDto } from '@repo/types';
 
 export const userKeys = {
   all: ['users'] as const,
+  list: (params?: UserListParams) => ['users', 'list', params] as const,
+  infinite: (params?: UserListParams) => ['users', 'infinite', params] as const,
 };
 
-export function useUsersQuery() {
+export function useUsersQuery(params?: UserListParams) {
   return useQuery({
-    queryKey: userKeys.all,
-    queryFn: () => userService.getUsers(),
+    queryKey: userKeys.list(params),
+    queryFn: () => userService.getUsers(params),
+  });
+}
+
+export function useInfiniteUsersQuery(params?: UserListParams) {
+  return useInfiniteQuery({
+    queryKey: userKeys.infinite(params),
+    queryFn: ({ pageParam = 1 }) =>
+      userService.getUsers({ ...params, page: pageParam, limit: params?.limit ?? 20 }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, totalPages } = lastPage.meta;
+      return page < totalPages ? page + 1 : undefined;
+    },
   });
 }
 

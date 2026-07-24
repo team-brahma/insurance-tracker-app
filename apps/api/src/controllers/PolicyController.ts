@@ -31,6 +31,14 @@ export const policyController = {
     const renewalStatusFilter = query.renewal_status ?? query.renewalStatus;
     if (renewalStatusFilter) params.renewalStatus = renewalStatusFilter.split(',');
     if (query.urgency) params.urgency = query.urgency;
+    const isOutsourcedRaw = query.is_outsourced ?? query.isOutsourced;
+    if (isOutsourcedRaw !== undefined) {
+      params.isOutsourced = isOutsourcedRaw === 'true' || isOutsourcedRaw === '1';
+    }
+    const associateAgentIdVal = query.associate_agent_id ?? query.associateAgentId;
+    if (associateAgentIdVal) {
+      params.associateAgentId = associateAgentIdVal;
+    }
     if (query.page) params.page = parseInt(query.page, 10);
     if (query.limit) params.limit = parseInt(query.limit, 10);
     const result = await policyService.list(agentId, params);
@@ -79,6 +87,8 @@ export const policyController = {
     if (body.claimDate != null) data.claimDate = body.claimDate;
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;
     if (body.enquiryId != null) data.enquiryId = body.enquiryId;
+    if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
+    if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
     const policy = (await policyService.create(
       agentId,
       data as Parameters<typeof policyService.create>[1],
@@ -117,6 +127,8 @@ export const policyController = {
     if (body.isClaimed != null) data.isClaimed = body.isClaimed;
     if (body.claimDate != null) data.claimDate = body.claimDate;
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;
+    if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
+    if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
     const policy = (await policyService.update(agentId, id, data)) as Record<string, unknown>;
     applyRenewalNoticeUrl(policy);
     sanitizePolicy(policy);

@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import type { InputHTMLAttributes, ReactNode } from 'react';
+import { X } from 'lucide-react';
 import { cn } from '@utils/Cn.js';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -8,6 +9,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   helperText?: string | undefined;
   leftElement?: ReactNode;
   rightElement?: ReactNode;
+  onClear?: (() => void) | undefined;
   containerClassName?: string;
 }
 
@@ -18,6 +20,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     helperText,
     leftElement,
     rightElement,
+    onClear,
     containerClassName,
     className,
     id,
@@ -26,6 +29,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   ref,
 ) {
   const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
+  const hasValue = props.value !== undefined && props.value !== null && String(props.value).length > 0;
 
   return (
     <div className={cn('flex flex-col gap-1.5', containerClassName)}>
@@ -51,14 +55,26 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
               ? 'border-red-edge focus:border-red-edge focus:shadow-[0_0_0_3px_rgba(244,63,94,0.15)]'
               : 'border-line-strong',
             leftElement ? 'pl-9' : 'px-3',
-            rightElement ? 'pr-9' : 'pr-3',
+            onClear && hasValue ? 'pr-9' : rightElement ? 'pr-9' : 'pr-3',
             className,
           )}
           {...props}
         />
-        {rightElement && (
+        {onClear && hasValue ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
+            className="absolute right-3 flex h-5 w-5 items-center justify-center rounded-full text-ink-faint hover:bg-paper hover:text-ink transition cursor-pointer"
+            aria-label="Clear text"
+          >
+            <X size={13} />
+          </button>
+        ) : rightElement ? (
           <span className="absolute right-3 flex items-center text-ink-faint">{rightElement}</span>
-        )}
+        ) : null}
       </div>
       {error && <p className="text-[11px] font-semibold text-red-fg">{error}</p>}
       {!error && helperText && <p className="text-[11px] text-ink-faint">{helperText}</p>}

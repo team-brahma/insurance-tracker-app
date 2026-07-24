@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,7 +26,7 @@ import Button from '@components/ui/Button.js';
 import Input from '@components/ui/Input.js';
 import { useAuthStore } from '@features/auth/store/AuthStore.js';
 import {
-  useUsersQuery,
+  useInfiniteUsersQuery,
   useCreateUserMutation,
   useDeleteUserMutation,
 } from '@features/users/index.js';
@@ -45,7 +45,6 @@ type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
 export default function UserManagementPage() {
   const currentUser = useAuthStore((s) => s.user);
-  const { data: usersResponse, isLoading, error } = useUsersQuery();
   const createUserMutation = useCreateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
 
@@ -53,7 +52,39 @@ export default function UserManagementPage() {
     searchText: searchQuery,
     debouncedSearchText: debouncedSearchQuery,
     setSearchText: setSearchQuery,
+    clearSearch,
   } = useSearch();
+
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteUsersQuery({
+    search: debouncedSearchQuery,
+    limit: 20,
+  });
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -73,16 +104,9 @@ export default function UserManagementPage() {
 
   const watchedRole = watch('role');
 
-  const users = useMemo(() => usersResponse?.data ?? [], [usersResponse]);
-
   const filteredUsers = useMemo(() => {
-    if (!debouncedSearchQuery) return users;
-    const query = debouncedSearchQuery.toLowerCase();
-    return users.filter(
-      (u: RepoUser) =>
-        u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query),
-    );
-  }, [users, debouncedSearchQuery]);
+    return data?.pages.flatMap((page) => page.data) ?? [];
+  }, [data]);
 
   const handleOpenCreate = () => {
     reset({ name: '', email: '', password: '', role: 'AGENT' });
@@ -153,17 +177,15 @@ export default function UserManagementPage() {
         </Button>
       }
       hero={
-        <div className="relative">
-          <Search size={15} className="absolute left-3.5 top-3 text-ink-faint pointer-events-none" />
-          <Input
-            placeholder="Search by name or email..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-            }}
-            className="pl-10"
-          />
-        </div>
+        <Input
+          placeholder="Search by name or email..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+          }}
+          leftElement={<Search size={15} />}
+          onClear={clearSearch}
+        />
       }
     >
       {filteredUsers.length === 0 ? (
@@ -174,50 +196,51 @@ export default function UserManagementPage() {
           description="Try adjusting your search criteria or create a new user."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredUsers.map((user: RepoUser) => {
-            const isMe = user.id === currentUser?.id;
-            return (
-              <SurfaceCard
-                key={user.id}
-                className="flex flex-col justify-between border border-line/60 p-5 transition-all hover:border-line-strong hover:shadow-md"
-              >
-                <div className="text-left">
-                  <div className="flex items-start justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-slate to-slate-soft text-sm font-black text-white shadow-sm ring-2 ring-white/10">
-                      {initials(user.name)}
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredUsers.map((user: RepoUser) => {
+              const isMe = user.id === currentUser?.id;
+              return (
+                <SurfaceCard
+                  key={user.id}
+                  className="flex flex-col justify-between border border-line/60 p-5 transition-all hover:border-line-strong hover:shadow-md"
+                >
+                  <div className="text-left">
+                    <div className="flex items-start justify-between">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-slate to-slate-soft text-sm font-black text-white shadow-sm ring-2 ring-white/10">
+                        {initials(user.name)}
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <Badge
+                          tone={user.role === 'ADMIN' ? 'overdue' : 'neutral'}
+                          className="font-extrabold uppercase tracking-wider text-[10px]"
+                        >
+                          {user.role}
+                        </Badge>
+                        {isMe && (
+                          <span className="rounded-full bg-slate/10 px-2 py-0.5 text-[9px] font-bold text-slate dark:bg-slate/25">
+                            You
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                      <Badge
-                        tone={user.role === 'ADMIN' ? 'overdue' : 'neutral'}
-                        className="font-extrabold uppercase tracking-wider text-[10px]"
-                      >
-                        {user.role}
-                      </Badge>
-                      {isMe && (
-                        <span className="rounded-full bg-slate/10 px-2 py-0.5 text-[9px] font-bold text-slate dark:bg-slate/25">
-                          You
-                        </span>
-                      )}
+
+                    <h3 className="mt-4 font-sans text-[15px] font-black text-ink leading-tight truncate">
+                      {user.name}
+                    </h3>
+                    <div className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
+                      <Mail size={13} className="shrink-0 text-ink-faint" />
+                      <span className="truncate">{user.email}</span>
                     </div>
                   </div>
 
-                  <h3 className="mt-4 font-sans text-[15px] font-black text-ink leading-tight truncate">
-                    {user.name}
-                  </h3>
-                  <div className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
-                    <Mail size={13} className="shrink-0 text-ink-faint" />
-                    <span className="truncate">{user.email}</span>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-line/50 pt-4 text-xs text-ink-faint">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar size={13} className="shrink-0" />
-                    <span>Joined {formatDate(user.createdAt)}</span>
-                  </div>
-                  {!isMe && (
-                    <button
+                  <div className="mt-5 flex items-center justify-between border-t border-line/50 pt-4 text-xs text-ink-faint">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar size={13} className="shrink-0" />
+                      <span>Joined {formatDate(user.createdAt)}</span>
+                    </div>
+                    {!isMe && (
+                      <button
                       onClick={() => {
                         handleOpenDelete(user.id);
                       }}
@@ -232,6 +255,15 @@ export default function UserManagementPage() {
             );
           })}
         </div>
+        <div ref={sentinelRef} className="py-4 text-center">
+          {isFetchingNextPage && (
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-ink-faint">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate border-t-transparent" />
+              Loading more users...
+            </div>
+          )}
+        </div>
+      </div>
       )}
 
       {/* ── CREATE USER MODAL ── */}

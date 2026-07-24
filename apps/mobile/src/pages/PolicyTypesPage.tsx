@@ -3,12 +3,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSearch } from '@hooks/useSearch.js';
-import { Plus, Trash2, Tag, Edit2 } from 'lucide-react';
+import { Search, Plus, Trash2, Tag, Pencil, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import AppShellPage from '@components/layout/AppShellPage.js';
 import EmptyState from '@components/ui/EmptyState.js';
 import PageLoader from '@components/ui/PageLoader.js';
 import SurfaceCard from '@components/ui/SurfaceCard.js';
+import Badge from '@components/ui/Badge.js';
 import Dialog from '@components/ui/Dialog.js';
 import AlertDialog from '@components/ui/AlertDialog.js';
 import Button from '@components/ui/Button.js';
@@ -20,6 +22,32 @@ import {
   useDeletePolicyTypeMutation,
 } from '@features/policyTypes/index.js';
 import type { PolicyTypeMaster } from '@repo/types';
+import { initials } from '@repo/utils';
+import { cn } from '@utils/Cn.js';
+
+const initialsColors = [
+  'bg-sky-100 text-sky-700 dark:bg-sky-950/45 dark:text-sky-300 border-sky-200/40',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-300 border-emerald-200/40',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/45 dark:text-amber-300 border-amber-200/40',
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/45 dark:text-rose-300 border-rose-200/40',
+  'bg-violet-100 text-violet-700 dark:bg-violet-950/45 dark:text-violet-300 border-violet-200/40',
+  'bg-teal-100 text-teal-700 dark:bg-teal-950/45 dark:text-teal-300 border-teal-200/40',
+];
+
+function getInitialsColor(name: string) {
+  const sum = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return initialsColors[sum % initialsColors.length] ?? initialsColors[0] ?? '';
+}
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04 } },
+};
+
+const cardVariant = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 380, damping: 28 } },
+};
 
 const policyTypeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -152,25 +180,36 @@ export default function PolicyTypesPage() {
         </Button>
       }
       hero={
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-ink-faint">
-              <Tag size={15} />
-            </span>
-            <input
-              type="text"
-              placeholder="Search policy types..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-              }}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-line bg-surface/50 text-sm font-semibold placeholder:text-ink-faint focus:outline-none focus:border-slate focus:ring-1 focus:ring-slate/20 transition-all shadow-sm"
-            />
+        <div className="space-y-3">
+          <div className="flex gap-2 items-center">
+            <div className="flex h-11 flex-1 items-center gap-2.5 rounded-2xl border border-line bg-paper/90 px-4 shadow-inner transition-all focus-within:border-line-strong focus-within:shadow-none">
+              <Search size={15} className="shrink-0 text-ink-faint" />
+              <input
+                className="flex-1 border-none bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
+                placeholder="Search policy types..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-ink-faint hover:bg-surface hover:text-ink transition"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap text-left">
+            <Badge tone="accent">{`${String(allPolicyTypes.length)} policy types`}</Badge>
           </div>
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="pb-4">
         {allPolicyTypes.length === 0 ? (
           <EmptyState
             icon={Tag}
@@ -195,46 +234,67 @@ export default function PolicyTypesPage() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <motion.div
+            key={debouncedSearchQuery}
+            variants={stagger}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr"
+          >
             {allPolicyTypes.map((type) => (
-              <SurfaceCard
-                key={type.id}
-                className="group flex flex-col justify-between p-5 border border-line hover:border-slate/40 hover:shadow-md transition-all duration-200"
-              >
-                <div className="text-left">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-ink group-hover:text-slate transition-colors">
-                      {type.name}
-                    </span>
-                  </div>
-                </div>
+              <motion.div key={type.id} variants={cardVariant} layout className="h-full">
+                <SurfaceCard className="group h-full overflow-hidden p-0 backdrop-blur-sm border border-line hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] active:scale-[0.99] transition-all duration-300">
+                  <div className="flex h-full flex-col justify-between">
+                    <div className="p-4 sm:p-5 flex items-center gap-3">
+                      {/* Avatar & Name */}
+                      <div
+                        className={cn(
+                          'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
+                          getInitialsColor(type.name),
+                        )}
+                      >
+                        {initials(type.name)}
+                      </div>
+                      <div className="min-w-0 flex-1 text-left">
+                        <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
+                          {type.name}
+                        </h3>
+                      </div>
+                    </div>
 
-                <div className="flex items-center justify-end gap-2 border-t border-line/60 pt-3.5 mt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<Edit2 size={12} />}
-                    onClick={() => {
-                      handleOpenEdit(type);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    leftIcon={<Trash2 size={12} />}
-                    onClick={() => {
-                      setDeleteTargetId(type.id);
-                      setIsDeleteOpen(true);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </SurfaceCard>
+                    {/* Footer Row matching Client/Policy list icons */}
+                    <div className="flex items-center justify-end border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEdit(type);
+                            }}
+                            title="Edit policy type"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTargetId(type.id);
+                              setIsDeleteOpen(true);
+                            }}
+                            title="Delete policy type"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-red-fg active:scale-95 cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </SurfaceCard>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
 
         <div ref={sentinelRef} className="py-4 flex justify-center">

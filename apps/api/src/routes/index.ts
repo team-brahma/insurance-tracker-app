@@ -11,6 +11,7 @@ import notificationRoutes from './Notifications.js';
 import policyTypeRoutes from './PolicyTypes.js';
 import insuranceProviderRoutes from './InsuranceProviders.js';
 import bulkRoutes from './BulkImport.js';
+import associateAgentRoutes from './AssociateAgents.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
@@ -26,5 +27,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(notificationRoutes, { prefix: '/api/v1/notifications' });
   await app.register(policyTypeRoutes, { prefix: '/api/v1/policy-types' });
   await app.register(insuranceProviderRoutes, { prefix: '/api/v1/insurance-providers' });
+  await app.register(associateAgentRoutes, { prefix: '/api/v1/associate-agents' });
   await app.register(bulkRoutes, { prefix: '/api/v1/bulk' });
 }

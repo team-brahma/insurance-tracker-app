@@ -8,9 +8,11 @@ export const clientService = {
     limit = 20,
     exactMobile?: string,
     exactName?: string,
+    isOutsourced?: boolean,
+    associateAgentId?: string,
   ): Promise<PaginatedResponse<Client>> {
     const { data } = await httpClient.get<PaginatedResponse<Client>>('/api/v1/clients', {
-      params: { search, page, limit, exactMobile, exactName },
+      params: { search, page, limit, exactMobile, exactName, isOutsourced, associateAgentId },
     });
     return data;
   },

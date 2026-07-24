@@ -23,6 +23,8 @@ import {
   Paperclip,
   Building2,
   X,
+  UserCheck,
+  Users,
 } from 'lucide-react';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -298,7 +300,10 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
 
   const days = daysToExpiry(policy.endDate);
   const urgency = urgencyBucket(days);
-  const tel = policy.client.mobileNumber;
+
+  const associateAgentObj = policy.associateAgent ?? policy.client.associateAgent;
+  const isOutsourced = policy.isOutsourced || policy.client.isOutsourced;
+  const tel = isOutsourced && associateAgentObj?.mobileNumber ? associateAgentObj.mobileNumber : policy.client.mobileNumber;
 
   function callAgent() {
     if (!tel) {
@@ -563,6 +568,22 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                         Expires {formatDate(policy.endDate)}
                       </span>
 
+                      {/* Associate Policy Badge */}
+                      {policy.insuredPersonName && policy.client?.insuredName && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300 backdrop-blur-sm shadow-sm">
+                          <Users size={12} className="shrink-0 text-sky-500" />
+                          Client: {policy.client.insuredName}
+                        </span>
+                      )}
+
+                      {/* Outsourced Policy Badge */}
+                      {(policy.isOutsourced || policy.associateAgent) && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-purple-500/25 bg-purple-500/10 text-purple-700 dark:text-purple-300 backdrop-blur-sm shadow-sm">
+                          <UserCheck size={12} className="shrink-0 text-purple-500" />
+                          Outsourced{policy.associateAgent ? `: ${policy.associateAgent.name}` : ''}
+                        </span>
+                      )}
+
                       {/* Insurance Provider Badge */}
                       {policy.insuranceProvider && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 backdrop-blur-sm shadow-sm">
@@ -673,6 +694,34 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                     }
                   />
                 </div>
+
+                {isOutsourced && associateAgentObj && (
+                  <div className="mt-4 p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/25 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                        <UserCheck size={12} />
+                        Associate Agent (Partner)
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-800 dark:text-purple-200">
+                        Outsourced
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-ink">
+                      {associateAgentObj.name} {associateAgentObj.agencyName ? `(${associateAgentObj.agencyName})` : ''}
+                    </div>
+                    <div className="text-xs font-mono text-purple-700 dark:text-purple-300">
+                      Mobile: {associateAgentObj.mobileNumber}
+                    </div>
+                    {associateAgentObj.notes && (
+                      <p className="text-[11px] text-ink-muted italic">
+                        "{associateAgentObj.notes}"
+                      </p>
+                    )}
+                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold pt-1 border-t border-purple-500/20">
+                      * Reminders for this policy will target this associate agent.
+                    </p>
+                  </div>
+                )}
 
                 {/* Communication hub — lives at bottom of col 1 on desktop */}
                 <div className="mt-4 pt-4 border-t border-line">

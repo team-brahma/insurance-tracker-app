@@ -18,7 +18,7 @@ export default function ProfileDropdown({ collapsed }: ProfileDropdownProps) {
   const user = useAuthStore((s) => s.user);
   const logoutMutation = useLogoutMutation();
   const { data: countData } = useNotificationCountQuery();
-  const count = countData ?? 0;
+  const count = typeof countData === 'number' ? countData : (countData?.totalCount ?? 0);
 
   const userInitials = user ? initials(user.name) : '??';
 

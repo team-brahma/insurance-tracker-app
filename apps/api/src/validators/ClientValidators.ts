@@ -12,6 +12,8 @@ export const createClientSchema = z.object({
     .refine((v) => v === '' || VALIDATION.INDIA_MOBILE.test(v), {
       message: VALIDATION_ERRORS.INDIA_MOBILE,
     }),
+  isOutsourced: z.boolean().optional(),
+  associateAgentId: z.string().nullish(),
 });
 
 export const updateClientSchema = z.object({
@@ -26,4 +28,6 @@ export const updateClientSchema = z.object({
       message: VALIDATION_ERRORS.INDIA_MOBILE,
     })
     .nullish(),
+  isOutsourced: z.boolean().optional(),
+  associateAgentId: z.string().nullish(),
 });

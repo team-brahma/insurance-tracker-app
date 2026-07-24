@@ -1,10 +1,40 @@
 import { httpClient } from '@services/HttpClient.js';
 import type { ApiResponse, User, RegisterDto } from '@repo/types';
 
+export interface UserListParams {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface UserListMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+}
+
+export interface PaginatedUsersResponse {
+  data: User[];
+  meta: UserListMeta;
+}
+
 export const userService = {
-  async getUsers(): Promise<ApiResponse<User[]>> {
-    const { data } = await httpClient.get<ApiResponse<User[]>>('/api/v1/users');
-    return data;
+  async getUsers(params?: UserListParams): Promise<PaginatedUsersResponse> {
+    const { data } = await httpClient.get<ApiResponse<User[]> & { meta?: UserListMeta }>('/api/v1/users', {
+      params,
+    });
+    return {
+      data: data.data,
+      meta: data.meta ?? {
+        total: data.data.length,
+        page: 1,
+        limit: data.data.length,
+        totalPages: 1,
+        hasNextPage: false,
+      },
+    };
   },
   async createUser(dto: RegisterDto): Promise<ApiResponse<User>> {
     const { data } = await httpClient.post<ApiResponse<User>>('/api/v1/users', dto);

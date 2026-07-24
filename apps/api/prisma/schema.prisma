@@ -26,6 +26,7 @@ model User {
   policies      Policy[]
   enquiries     Enquiry[]
   settings      Settings?
+  associateAgents AssociateAgent[]
   policyStatusChanges  PolicyStatusHistory[]
   enquiryStatusChanges EnquiryStatusHistory[]
 
@@ -78,16 +79,37 @@ enum RenewalStatus {
   @@map("renewal_status")
 }
 
-model Client {
-  id             String   @id @default(uuid())
-  agentId        String   @map("agent_id")
-  insuredName  String   @map("insured_name")
-  mobileNumber String?  @map("mobile_number")
+model AssociateAgent {
+  id           String   @id @default(uuid())
+  agentId      String   @map("agent_id")
+  name         String
+  mobileNumber String   @map("mobile_number")
+  agencyName   String?  @map("agency_name")
+  notes        String?  @map("notes")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   agent    User     @relation(fields: [agentId], references: [id])
+  clients  Client[]
   policies Policy[]
+
+  @@unique([agentId, mobileNumber])
+  @@map("associate_agents")
+}
+
+model Client {
+  id               String          @id @default(uuid())
+  agentId          String          @map("agent_id")
+  insuredName      String          @map("insured_name")
+  mobileNumber     String?         @map("mobile_number")
+  isOutsourced     Boolean         @default(false) @map("is_outsourced")
+  associateAgentId String?         @map("associate_agent_id")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  agent          User            @relation(fields: [agentId], references: [id])
+  associateAgent AssociateAgent? @relation(fields: [associateAgentId], references: [id], onDelete: SetNull)
+  policies       Policy[]
 
   @@unique([agentId, mobileNumber])
   @@map("clients")
@@ -114,6 +136,8 @@ model Policy {
   claimAmount         Decimal?                 @map("claim_amount")
   lastRemindedAt      DateTime?                @map("last_reminded_at")
   insuredPersonName   String?                  @map("insured_person_name")
+  isOutsourced        Boolean                  @default(false) @map("is_outsourced")
+  associateAgentId    String?                  @map("associate_agent_id")
   createdAt           DateTime                 @default(now()) @map("created_at")
   updatedAt           DateTime                 @updatedAt @map("updated_at")
 
@@ -121,6 +145,7 @@ model Policy {
   client            Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   policyType        PolicyTypeMaster         @relation(fields: [policyTypeId], references: [id])
   insuranceProvider InsuranceProviderMaster? @relation(fields: [insuranceProviderId], references: [id])
+  associateAgent    AssociateAgent?          @relation(fields: [associateAgentId], references: [id], onDelete: SetNull)
   statusHistories   PolicyStatusHistory[]
 
   @@map("policies")

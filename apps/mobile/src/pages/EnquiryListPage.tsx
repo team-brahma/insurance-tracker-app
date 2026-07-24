@@ -255,22 +255,28 @@ export default function EnquiryListPage() {
                 </button>
               )}
             </div>
-            {/* Filter button */}
+            {/* Filter button — shows X to clear in 1 click when filters active */}
             <button
               type="button"
               onClick={() => {
-                setTempFilterTypes(filterTypes);
-                setShowFilters(true);
+                if (activeFilterCount > 0) {
+                  setFilterTypes([]);
+                  setTempFilterTypes([]);
+                } else {
+                  setTempFilterTypes(filterTypes);
+                  setShowFilters(true);
+                }
               }}
               className={cn(
-                'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all',
+                'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all cursor-pointer',
                 activeFilterCount > 0
-                  ? 'border-slate bg-slate text-white shadow-[0_6px_20px_rgba(15,118,110,0.28)]'
+                  ? 'border-slate bg-slate text-white shadow-[0_6px_20px_rgba(15,118,110,0.28)] hover:bg-slate-soft'
                   : 'border-line-strong bg-surface text-ink-soft hover:bg-paper',
               )}
-              aria-label="Open filters"
+              aria-label={activeFilterCount > 0 ? 'Clear active filters' : 'Open filters'}
+              title={activeFilterCount > 0 ? 'Clear active filters' : 'Open filters'}
             >
-              <SlidersHorizontal size={16} />
+              {activeFilterCount > 0 ? <X size={18} className="stroke-[2.5]" /> : <SlidersHorizontal size={16} />}
               {activeFilterCount > 0 && (
                 <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-surface bg-red-edge" />
               )}
@@ -281,7 +287,18 @@ export default function EnquiryListPage() {
           <div className="flex items-center gap-2 flex-wrap text-left">
             <Badge tone="accent">{`${String(unallEnquiriesCount)} enquiries`}</Badge>
             {activeFilterCount > 0 && (
-              <Badge tone="neutral">{`${String(activeFilterCount)} filter${activeFilterCount > 1 ? 's' : ''}`}</Badge>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterTypes([]);
+                  setTempFilterTypes([]);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate/30 bg-slate/15 px-2.5 py-1 text-xs font-bold text-slate hover:bg-slate/25 dark:bg-slate/25 dark:hover:bg-slate/40 transition cursor-pointer"
+                title="Click to clear active filters"
+              >
+                <span>{`${String(activeFilterCount)} filter${activeFilterCount > 1 ? 's' : ''}`}</span>
+                <X size={13} className="stroke-[2.5]" />
+              </button>
             )}
           </div>
 
@@ -386,18 +403,7 @@ export default function EnquiryListPage() {
                       history.push(`/enquiries/${enquiry.id}`);
                     }}
                   >
-                    <div className="flex h-full items-stretch">
-                      {/* Status edge */}
-                      <div
-                        className={cn(
-                          'w-1.5 flex-none transition-all duration-300 group-hover:w-2',
-                          (enquiry.status as string) === 'OPEN' && 'bg-blue-edge',
-                          (enquiry.status as string) === 'CONVERTED' && 'bg-green-edge',
-                          (enquiry.status as string) === 'DROPPED' && 'bg-red-edge',
-                        )}
-                      />
-
-                      <div className="flex min-w-0 flex-1 flex-col justify-between">
+                    <div className="flex h-full min-w-0 flex-1 flex-col justify-between">
                         <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3">
                           {/* Name + Avatar */}
                           <div className="flex items-start gap-3">
@@ -544,8 +550,7 @@ export default function EnquiryListPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </SurfaceCard>
+                    </SurfaceCard>
                 </motion.div>
               );
             })}
@@ -592,6 +597,8 @@ export default function EnquiryListPage() {
               className="flex-1"
               onClick={() => {
                 setTempFilterTypes([]);
+                setFilterTypes([]);
+                setShowFilters(false);
               }}
             >
               Clear all

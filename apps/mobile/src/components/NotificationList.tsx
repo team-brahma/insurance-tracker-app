@@ -1,13 +1,13 @@
+import { useEffect, useMemo, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Bell, AlertCircle, CalendarClock, Calendar, Clock, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useNotificationsQuery } from '@features/notifications/hooks/useNotificationsQuery.js';
+import { useInfiniteNotificationsQuery, useNotificationsQuery } from '@features/notifications/hooks/useNotificationsQuery.js';
 import { cn } from '@utils/Cn.js';
 import { formatDate, formatDateTime, initials } from '@repo/utils';
 import type { NotificationItem } from '@features/notifications/types/index.js';
 import SurfaceCard from '@components/ui/SurfaceCard.js';
 import Badge from '@components/ui/Badge.js';
-
 import EmptyState from '@components/ui/EmptyState.js';
 
 type NotificationVariant = 'compact' | 'full';
@@ -43,12 +43,6 @@ const cardVariant = {
   show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 380, damping: 28 } },
 };
 
-function urgencyEdge(daysLeft: number): string {
-  if (daysLeft <= 0) return 'bg-red-edge';
-  if (daysLeft <= 7) return 'bg-amber-edge';
-  return 'bg-green-edge';
-}
-
 function urgencyText(daysLeft: number): string {
   if (daysLeft < 0) {
     const abs = Math.abs(daysLeft);
@@ -65,9 +59,52 @@ export default function NotificationList({
   filter = 'all',
 }: NotificationListProps) {
   const history = useHistory();
-  const { data: notifications } = useNotificationsQuery(variant === 'full');
 
-  if (!notifications) {
+  // For compact view (dropdowns), single query fetch with small limit
+  const { data: compactData, isLoading: compactLoading } = useNotificationsQuery(
+    { type: filter, limit: 10 },
+    variant === 'compact',
+  );
+
+  // For full page view, use infinite scrolling (20 records per page)
+  const {
+    data: infiniteData,
+    isLoading: infiniteLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteNotificationsQuery(variant === 'full' ? { type: filter, limit: 20 } : undefined);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (variant !== 'full') return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, [variant, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const isLoading = variant === 'compact' ? compactLoading : infiniteLoading;
+
+  const items: NotificationItem[] = useMemo(() => {
+    if (variant === 'compact') {
+      return compactData?.items ?? [];
+    }
+    return infiniteData?.pages.flatMap((page) => page.items) ?? [];
+  }, [variant, compactData, infiniteData]);
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate border-t-transparent" />
@@ -75,15 +112,7 @@ export default function NotificationList({
     );
   }
 
-  let filteredItems: NotificationItem[] = notifications.items;
-
-  if (filter === 'policies') {
-    filteredItems = notifications.items.filter((i) => i.type === 'policy_renewal');
-  } else if (filter === 'enquiries') {
-    filteredItems = notifications.items.filter((i) => i.type === 'enquiry_followup');
-  }
-
-  const count = filteredItems.length;
+  const count = items.length;
 
   if (count === 0) {
     if (variant === 'compact') {
@@ -146,7 +175,7 @@ export default function NotificationList({
         <p className="px-4 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-ink-faint">
           Upcoming Reminders &middot; {count}
         </p>
-        {filteredItems.map((item) => (
+        {items.map((item) => (
           <button
             key={`${item.type}-${item.id}`}
             onClick={() => {
@@ -200,120 +229,125 @@ export default function NotificationList({
   }
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr"
-    >
-      {filteredItems.map((item) => {
-        const name = item.type === 'policy_renewal' ? item.clientName : item.name;
-        return (
-          <motion.div
-            key={`${item.type}-${item.id}`}
-            variants={cardVariant}
-            layout
-            className="h-full"
-          >
-            <SurfaceCard
-              className="group h-full cursor-pointer overflow-hidden p-0 hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] transition-all duration-300"
-              onClick={() => {
-                onNavigate?.();
-                history.push(
-                  item.type === 'policy_renewal' ? `/policies/${item.id}` : `/enquiries/${item.id}`,
-                );
-              }}
+    <div className="space-y-4">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr"
+      >
+        {items.map((item) => {
+          const name = item.type === 'policy_renewal' ? item.clientName : item.name;
+          return (
+            <motion.div
+              key={`${item.type}-${item.id}`}
+              variants={cardVariant}
+              layout
+              className="h-full"
             >
-              <div className="flex h-full items-stretch">
-                <div
-                  className={cn(
-                    'w-1.5 flex-none transition-all duration-300 group-hover:w-2',
-                    urgencyEdge(item.daysLeft),
-                  )}
-                />
-
-                <div className="flex min-w-0 flex-1 flex-col justify-between">
-                  <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
-                          getInitialsColor(name),
-                        )}
-                      >
-                        {initials(name)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
-                          {name}
-                        </h3>
-                        <p
+              <SurfaceCard
+                className="group h-full cursor-pointer overflow-hidden p-0 hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] transition-all duration-300"
+                onClick={() => {
+                  onNavigate?.();
+                  history.push(
+                    item.type === 'policy_renewal' ? `/policies/${item.id}` : `/enquiries/${item.id}`,
+                  );
+                }}
+              >
+                <div className="flex h-full items-stretch">
+                  <div className="flex min-w-0 flex-1 flex-col justify-between">
+                    <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
+                        <div
                           className={cn(
-                            'mt-0.5 text-xs font-bold leading-normal',
-                            item.daysLeft <= 0 && 'text-red-fg',
-                            item.daysLeft > 0 && item.daysLeft <= 7 && 'text-amber-fg',
-                            item.daysLeft > 7 && 'text-green-fg',
+                            'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
+                            getInitialsColor(name),
                           )}
                         >
-                          {urgencyText(item.daysLeft)}
-                        </p>
+                          {initials(name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
+                            {name}
+                          </h3>
+                          <p
+                            className={cn(
+                              'mt-0.5 text-xs font-bold leading-normal',
+                              item.daysLeft <= 0 && 'text-red-fg',
+                              item.daysLeft > 0 && item.daysLeft <= 7 && 'text-amber-fg',
+                              item.daysLeft > 7 && 'text-green-fg',
+                            )}
+                          >
+                            {urgencyText(item.daysLeft)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge tone="neutral">
+                          {item.type === 'policy_renewal' ? item.policyType : item.policyType}
+                        </Badge>
+                        {item.type === 'policy_renewal' && item.renewalStatus && (
+                          <Badge
+                            tone={item.renewalStatus === 'REMINDED' ? 'reminded' : 'pending'}
+                            dot
+                          >
+                            {item.renewalStatus === 'REMINDED' ? 'Reminded' : 'Pending'}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        {item.type === 'policy_renewal' ? (
+                          <div className="flex items-center gap-1.5 text-xs text-ink-soft">
+                            <Calendar size={12} className="shrink-0 text-ink-faint" />
+                            <span className="font-semibold">Ends {formatDate(item.endDate)}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs text-ink-soft">
+                            <Clock size={12} className="shrink-0 text-ink-faint" />
+                            <span className="font-semibold">
+                              Follow-up {formatDateTime(item.remindOn)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge tone="neutral">
-                        {item.type === 'policy_renewal' ? item.policyType : item.policyType}
-                      </Badge>
-                      {item.type === 'policy_renewal' && item.renewalStatus && (
-                        <Badge
-                          tone={item.renewalStatus === 'REMINDED' ? 'reminded' : 'pending'}
-                          dot
-                        >
-                          {item.renewalStatus === 'REMINDED' ? 'Reminded' : 'Pending'}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      {item.type === 'policy_renewal' ? (
-                        <div className="flex items-center gap-1.5 text-xs text-ink-soft">
-                          <Calendar size={12} className="shrink-0 text-ink-faint" />
-                          <span className="font-semibold">Ends {formatDate(item.endDate)}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-xs text-ink-soft">
-                          <Clock size={12} className="shrink-0 text-ink-faint" />
-                          <span className="font-semibold">
-                            Follow-up {formatDateTime(item.remindOn)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
-                    <span
-                      className={cn(
-                        'text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em]',
-                        item.daysLeft <= 0
-                          ? 'text-red-fg'
-                          : item.daysLeft <= 7
-                            ? 'text-amber-fg'
-                            : 'text-green-fg',
-                      )}
-                    >
-                      {urgencyText(item.daysLeft)}
-                    </span>
-                    <div className="flex h-5 w-5 items-center justify-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-slate">
-                      <ChevronRight size={14} />
+                    <div className="flex items-center justify-between border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
+                      <span
+                        className={cn(
+                          'text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em]',
+                          item.daysLeft <= 0
+                            ? 'text-red-fg'
+                            : item.daysLeft <= 7
+                              ? 'text-amber-fg'
+                              : 'text-green-fg',
+                        )}
+                      >
+                        {urgencyText(item.daysLeft)}
+                      </span>
+                      <div className="flex h-5 w-5 items-center justify-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-slate">
+                        <ChevronRight size={14} />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </SurfaceCard>
-          </motion.div>
-        );
-      })}
-    </motion.div>
+              </SurfaceCard>
+            </motion.div>
+          );
+        })}
+      </motion.div>
+
+      {/* Infinite Scroll Sentinel & Loader */}
+      <div ref={sentinelRef} className="py-4 text-center">
+        {isFetchingNextPage && (
+          <div className="flex items-center justify-center gap-2 text-xs font-semibold text-ink-faint">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate border-t-transparent" />
+            Loading more reminders...
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

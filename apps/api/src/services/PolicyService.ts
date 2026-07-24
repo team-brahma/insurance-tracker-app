@@ -10,6 +10,8 @@ interface ListPoliciesParams {
   policyType?: string | string[]; // This holds policyTypeId
   renewalStatus?: RenewalStatus | RenewalStatus[];
   urgency?: string;
+  isOutsourced?: boolean;
+  associateAgentId?: string;
   page?: number;
   limit?: number;
 }
@@ -24,6 +26,9 @@ export const policyService = {
     if (params.urgency && ['overdue', 'due7', 'due30', 'future'].includes(params.urgency)) {
       filters.urgency = params.urgency;
     }
+    if (params.isOutsourced !== undefined) filters.isOutsourced = params.isOutsourced;
+    if (params.associateAgentId) filters.associateAgentId = params.associateAgentId;
+
     filters.page = params.page ?? 1;
     filters.limit = params.limit ?? 20;
 
@@ -59,9 +64,17 @@ export const policyService = {
       claimAmount?: number | null;
       insuredPersonName?: string | null;
       insuranceProviderId?: string | null;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
     },
   ) {
-    let client: { id: string; insuredName: string; mobileNumber: string | null } | null;
+    let client: {
+      id: string;
+      insuredName: string;
+      mobileNumber: string | null;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
+    } | null;
 
     if (data.clientId) {
       client = await clientRepository.findById(agentId, data.clientId);
@@ -77,10 +90,18 @@ export const policyService = {
       if (!data.mobileNumber) {
         throw new ValidationError('Mobile number is required to register a new client');
       }
-      client ??= await clientRepository.create(agentId, {
+      const clientPayload: {
+        insuredName: string;
+        mobileNumber: string;
+        isOutsourced?: boolean;
+        associateAgentId?: string | null;
+      } = {
         insuredName: formattedName,
         mobileNumber: data.mobileNumber,
-      });
+      };
+      if (data.isOutsourced !== undefined) clientPayload.isOutsourced = data.isOutsourced;
+      if (data.associateAgentId !== undefined) clientPayload.associateAgentId = data.associateAgentId;
+      client ??= await clientRepository.create(agentId, clientPayload);
     }
 
     const endDate = new Date(data.endDate.slice(0, 10) + 'T00:00:00.000Z');
@@ -88,10 +109,15 @@ export const policyService = {
       throw new ValidationError('Invalid end date');
     }
 
+    const isOutsourced = data.isOutsourced ?? client?.isOutsourced ?? false;
+    const associateAgentId = data.associateAgentId ?? client?.associateAgentId ?? null;
+
     const createData: Record<string, unknown> = {
       clientId: client.id,
       policyTypeId: data.policyType,
       endDate,
+      isOutsourced,
+      associateAgentId,
     };
     if (data.insuranceProviderId !== undefined) createData.insuranceProviderId = data.insuranceProviderId;
     if (data.vehicleNumber !== undefined) createData.vehicleNumber = data.vehicleNumber;
@@ -151,6 +177,8 @@ export const policyService = {
       claimAmount?: number | null;
       insuredPersonName?: string | null;
       insuranceProviderId?: string | null;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
     },
   ) {
     const existing = await this.getById(agentId, id);
@@ -176,6 +204,8 @@ export const policyService = {
     if (data.additionalNotice !== undefined) updateData.additionalNotice = data.additionalNotice;
     if (data.insuredPersonName !== undefined) updateData.insuredPersonName = data.insuredPersonName;
     if (data.isClaimed !== undefined) updateData.isClaimed = data.isClaimed;
+    if (data.isOutsourced !== undefined) updateData.isOutsourced = data.isOutsourced;
+    if (data.associateAgentId !== undefined) updateData.associateAgentId = data.associateAgentId;
     if (data.claimDate !== undefined && data.claimDate !== null) {
       const claimDate = new Date(data.claimDate.slice(0, 10) + 'T00:00:00.000Z');
       if (isNaN(claimDate.getTime())) throw new ValidationError('Invalid claim date');

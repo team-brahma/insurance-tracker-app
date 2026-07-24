@@ -10,9 +10,13 @@ export interface ClientListParams {
   search?: string;
   page?: number;
   limit?: number;
+  isOutsourced?: boolean;
+  associateAgentId?: string;
 }
 
 export interface ClientFormData {
   insuredName: string;
   mobileNumber: string;
+  isOutsourced?: boolean;
+  associateAgentId?: string | null;
 }

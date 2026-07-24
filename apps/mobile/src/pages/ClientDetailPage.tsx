@@ -8,6 +8,7 @@ import {
   FileText,
   Calendar,
   ChevronRight,
+  UserCheck,
 } from 'lucide-react';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -155,15 +156,35 @@ export default function ClientDetailPage() {
 
             {/* Main Header Layout */}
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className={cn(
-                    'flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-tr font-black text-lg shadow-md border border-white/20',
-                    'from-indigo-500 to-indigo-600 text-white shadow-indigo-500/20',
-                  )}>
-                  {initials(name)}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-ink">{name}</h2>
+              <div className="flex items-start gap-3 sm:gap-4.5 min-w-0">
+                {/* Desktop-only Back button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="!hidden md:!flex items-center gap-1.5"
+                  onClick={() => {
+                    history.goBack();
+                  }}
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back</span>
+                </Button>
+
+                {/* Avatar + Title Container */}
+                <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                  <div
+                    className={cn(
+                      'flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr font-black text-lg shadow-md border border-white/20 mt-0.5',
+                      'from-indigo-500 to-indigo-600 text-white shadow-indigo-500/20',
+                    )}
+                  >
+                    {initials(name)}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-ink leading-tight tracking-tight break-words">
+                      {name}
+                    </h2>
+                  </div>
                 </div>
               </div>
 
@@ -181,17 +202,17 @@ export default function ClientDetailPage() {
         </IonToolbar>
       </IonHeader>
 
-      <IonContent className="ion-padding-bottom">
+      <IonContent scrollY={false} className="[--background:transparent]">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: 'easeOut' }}
-          className="min-h-full bg-body-bg"
+          className="h-full flex flex-col bg-body-bg overflow-hidden"
         >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6 pb-4 md:pb-6 flex-1 min-h-0 flex flex-col">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 min-h-0 overflow-y-auto md:overflow-hidden pb-4 md:pb-0">
               {/* ─── Col 1: Client details ─── */}
-              <section className="flex flex-col bg-surface border border-line rounded-[24px] p-6 shadow-[0_4px_24px_rgba(15,23,42,0.06)]">
+              <section className="flex flex-col bg-surface border border-line rounded-[24px] p-6 shadow-[0_4px_24px_rgba(15,23,42,0.06)] md:h-full md:max-h-full overflow-y-auto custom-scroll shrink-0 md:shrink-0 self-start md:self-auto">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/45 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40 shrink-0">
                     <User size={15} />
@@ -216,6 +237,39 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
 
+                {client.isOutsourced && client.associateAgent && (
+                  <div className="mt-4 p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/25 space-y-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                        <UserCheck size={12} />
+                        Associate Agent (Partner)
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-800 dark:text-purple-200">
+                        Outsourced
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-ink">
+                      {client.associateAgent.name} {client.associateAgent.agencyName ? `(${client.associateAgent.agencyName})` : ''}
+                    </div>
+                    <div className="text-xs font-mono text-purple-700 dark:text-purple-300">
+                      Mobile: {client.associateAgent.mobileNumber}
+                    </div>
+                    {client.associateAgent.notes && (
+                      <p className="text-[11px] text-ink-muted italic">
+                        "{client.associateAgent.notes}"
+                      </p>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2 text-purple-600 dark:text-purple-400 border-purple-500/30"
+                      onClick={() => window.open(`tel:${client.associateAgent?.mobileNumber}`)}
+                    >
+                      Call Associate Agent
+                    </Button>
+                  </div>
+                )}
+
                 {tel ? (
                   <div className="mt-5 pt-4 border-t border-line">
                     <Button
@@ -233,8 +287,8 @@ export default function ClientDetailPage() {
               </section>
 
               {/* ─── Col 2: Policies list ─── */}
-              <section className="flex flex-col bg-surface border border-line rounded-[24px] p-6 shadow-[0_4px_24px_rgba(15,23,42,0.06)] text-left sm:col-span-1 xl:col-span-2 min-w-0">
-                <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-line">
+              <section className="flex flex-col bg-surface border border-line rounded-[24px] p-6 shadow-[0_4px_24px_rgba(15,23,42,0.06)] text-left sm:col-span-1 xl:col-span-2 min-w-0 md:h-full md:max-h-full overflow-hidden">
+                <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-line shrink-0">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/45 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40 shrink-0">
                       <FileText size={15} />
@@ -248,7 +302,7 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
 
-                <div>
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scroll">
                   {policies.length === 0 ? (
                     <p className="text-sm text-ink-faint text-center py-8">
                       No policies linked to this client.

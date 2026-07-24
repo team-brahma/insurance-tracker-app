@@ -5,18 +5,24 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { IonPage, IonContent, IonHeader, IonToolbar, IonFooter } from '@ionic/react';
 import {
   useClientQuery,
   useCreateClientMutation,
   useUpdateClientMutation,
 } from '@features/clients/index.js';
+import { useAssociateAgentsQuery, useCreateAssociateAgentMutation } from '@features/associateAgents/index.js';
 import { VALIDATION, VALIDATION_ERRORS } from '@repo/constants';
 import { initials } from '@repo/utils';
 import PageLoader from '@components/ui/PageLoader.js';
 import Button from '@components/ui/Button.js';
 import Input from '@components/ui/Input.js';
+import Dialog from '@components/ui/Dialog.js';
+import Select from '@components/ui/Select.js';
+import Checkbox from '@components/ui/Checkbox.js';
 import { cn } from '@utils/Cn.js';
+import { UserCheck, Plus } from 'lucide-react';
 
 const clientSchema = z.object({
   insuredName: z.string().min(1, 'Name is required').regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
@@ -24,6 +30,8 @@ const clientSchema = z.object({
     .string()
     .min(1, 'Mobile number is required')
     .regex(/^(?:\+91|91|0)?[-\s]?[6-9](?:[-\s]?\d){9}$/, VALIDATION_ERRORS.INDIA_MOBILE),
+  isOutsourced: z.boolean().optional(),
+  associateAgentId: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof clientSchema>;
@@ -53,6 +61,23 @@ export default function ClientFormPage() {
   const isEdit = !!id;
 
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
+  const [newAgentName, setNewAgentName] = useState('');
+  const [newAgentMobile, setNewAgentMobile] = useState('');
+
+  const { data: associateAgents = [] } = useAssociateAgentsQuery();
+  const createAgentMutation = useCreateAssociateAgentMutation();
+
+  const associateAgentOptions = useMemo(
+    () => [
+      { value: '', label: '-- Select Associate Agent --' },
+      ...associateAgents.map((ag) => ({
+        value: ag.id,
+        label: `${ag.name} (${ag.mobileNumber})${ag.agencyName ? ` - ${ag.agencyName}` : ''}`,
+      })),
+    ],
+    [associateAgents],
+  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -75,11 +100,15 @@ export default function ClientFormPage() {
       return {
         insuredName: existing.insuredName,
         mobileNumber: existing.mobileNumber?.replace('+91', '') ?? '',
+        isOutsourced: existing.isOutsourced ?? false,
+        associateAgentId: existing.associateAgentId ?? '',
       };
     }
     return {
       insuredName: '',
       mobileNumber: '',
+      isOutsourced: false,
+      associateAgentId: '',
     };
   }, [existing]);
 
@@ -87,9 +116,10 @@ export default function ClientFormPage() {
     register,
     handleSubmit,
     watch,
+    setValue,
     reset,
     formState: { errors },
-  } = useForm<FormValues>({
+  } = useForm({
     resolver: zodResolver(clientSchema),
     defaultValues,
   });
@@ -99,11 +129,15 @@ export default function ClientFormPage() {
       reset({
         insuredName: existing.insuredName,
         mobileNumber: existing.mobileNumber?.replace('+91', '') ?? '',
+        isOutsourced: existing.isOutsourced ?? false,
+        associateAgentId: existing.associateAgentId ?? '',
       });
     } else if (!isEdit) {
       reset({
         insuredName: '',
         mobileNumber: '',
+        isOutsourced: false,
+        associateAgentId: '',
       });
     }
   }, [existing, isEdit, reset]);
@@ -118,11 +152,21 @@ export default function ClientFormPage() {
 
   if (isLoading && isEdit) return <PageLoader variant="default" />;
 
+  const watchIsOutsourced = watch('isOutsourced');
+  const watchAssociateAgentId = watch('associateAgentId');
+
   const onSubmit = async (values: FormValues) => {
     try {
-      const payload = {
+      const payload: {
+        insuredName: string;
+        mobileNumber: string;
+        isOutsourced?: boolean;
+        associateAgentId?: string | null;
+      } = {
         insuredName: values.insuredName.trim(),
         mobileNumber: `+91${values.mobileNumber.replace(/\D/g, '').slice(-10)}`,
+        isOutsourced: values.isOutsourced ?? false,
+        associateAgentId: values.isOutsourced && values.associateAgentId ? values.associateAgentId : null,
       };
 
       if (isEdit && id) {
@@ -133,6 +177,27 @@ export default function ClientFormPage() {
       history.push('/clients');
     } catch (err) {
       // Handled globally
+    }
+  };
+
+  const handleQuickAddAgent = async () => {
+    if (!newAgentName.trim() || !newAgentMobile.trim()) {
+      toast.error('Agent Name and Mobile are required.');
+      return;
+    }
+    try {
+      const res = await createAgentMutation.mutateAsync({
+        name: newAgentName.trim(),
+        mobileNumber: newAgentMobile.trim(),
+      });
+      toast.success(`Associate agent "${newAgentName}" created.`);
+      setValue('associateAgentId', res.data.id);
+      setIsAddAgentOpen(false);
+      setNewAgentName('');
+      setNewAgentMobile('');
+    } catch (err) {
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(axiosError.response?.data?.message ?? axiosError.message ?? 'Failed to add agent.');
     }
   };
 
@@ -325,6 +390,47 @@ export default function ClientFormPage() {
               {...register('mobileNumber')}
             />
 
+            {/* Outsource / Associate Agent Section */}
+            <div className="pt-2 border-t border-line/60 space-y-3">
+              <Checkbox
+                id="client_is_outsourced"
+                checked={!!watchIsOutsourced}
+                onCheckedChange={(checked) => setValue('isOutsourced', checked)}
+                label={
+                  <span className="flex items-center gap-1.5 font-semibold text-ink">
+                    <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
+                    Outsourced / Other Agent Customer
+                  </span>
+                }
+              />
+
+              {watchIsOutsourced && (
+                <div className="pl-7 space-y-3 pt-1">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Select
+                        label="Select Associate Agent"
+                        value={watchAssociateAgentId || ''}
+                        onValueChange={(val) => setValue('associateAgentId', val)}
+                        options={associateAgentOptions}
+                        error={errors.associateAgentId?.message}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      title="Add Associate Agent"
+                      className="shrink-0 flex h-11 w-11 items-center justify-center p-0 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10 active:scale-95 transition-all rounded-xl"
+                      onClick={() => setIsAddAgentOpen(true)}
+                    >
+                      <Plus size={18} />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {isDesktop && (
               <div className="flex gap-3 pt-3 border-t border-line">
                 <Button
@@ -386,6 +492,44 @@ export default function ClientFormPage() {
           </div>
         </IonFooter>
       )}
+
+      {/* Quick Add Associate Agent Dialog */}
+      <Dialog
+        open={isAddAgentOpen}
+        onClose={() => setIsAddAgentOpen(false)}
+        title="Quick Add Associate Agent"
+        description="Add a new external partner agent to select for this customer."
+      >
+        <div className="space-y-4 text-left">
+          <Input
+            label="Agent Name"
+            placeholder="e.g. John Doe"
+            value={newAgentName}
+            onChange={(e) => setNewAgentName(e.target.value)}
+          />
+          <Input
+            label="Mobile Number"
+            placeholder="e.g. 9876543210"
+            value={newAgentMobile}
+            onChange={(e) => setNewAgentMobile(e.target.value)}
+          />
+          <div className="flex justify-end gap-2 pt-4 border-t border-line/45 mt-4">
+            <Button variant="outline" type="button" onClick={() => setIsAddAgentOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="button"
+              loading={createAgentMutation.isPending}
+              onClick={() => {
+                void handleQuickAddAgent();
+              }}
+            >
+              Add Agent
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </IonPage>
   );
 }

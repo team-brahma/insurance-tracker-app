@@ -3,11 +3,28 @@ import { NotFoundError, ValidationError } from '@errors/AppError.js';
 import { formatSmartClientName } from '@repo/utils';
 
 export const clientService = {
-  async create(agentId: string, data: { insuredName: string; mobileNumber: string }) {
-    return clientRepository.create(agentId, {
+  async create(
+    agentId: string,
+    data: {
+      insuredName: string;
+      mobileNumber: string;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
+    },
+  ) {
+    const createPayload: {
+      insuredName: string;
+      mobileNumber: string;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
+    } = {
       insuredName: formatSmartClientName(data.insuredName),
       mobileNumber: data.mobileNumber,
-    });
+    };
+    if (data.isOutsourced !== undefined) createPayload.isOutsourced = data.isOutsourced;
+    if (data.associateAgentId !== undefined) createPayload.associateAgentId = data.associateAgentId;
+
+    return clientRepository.create(agentId, createPayload);
   },
 
   async list(
@@ -17,8 +34,19 @@ export const clientService = {
     limit?: number,
     exactMobile?: string,
     exactName?: string,
+    isOutsourced?: boolean,
+    associateAgentId?: string,
   ) {
-    return clientRepository.findAll(agentId, search, page, limit, exactMobile, exactName);
+    return clientRepository.findAll(
+      agentId,
+      search,
+      page,
+      limit,
+      exactMobile,
+      exactName,
+      isOutsourced,
+      associateAgentId,
+    );
   },
 
   async getById(agentId: string, id: string) {
@@ -27,7 +55,16 @@ export const clientService = {
     return client;
   },
 
-  async update(agentId: string, id: string, data: { insuredName?: string; mobileNumber?: string }) {
+  async update(
+    agentId: string,
+    id: string,
+    data: {
+      insuredName?: string;
+      mobileNumber?: string;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
+    },
+  ) {
     await this.getById(agentId, id);
     const updateData: typeof data = { ...data };
     if (updateData.insuredName) {

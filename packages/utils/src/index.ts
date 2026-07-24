@@ -147,6 +147,25 @@ export function validateVehicleNumber(raw: string): boolean {
   return /^[A-Z]{2}\d{1,2}[A-Z]{1,2}\d{1,4}$/.test(raw.toUpperCase());
 }
 
+export function isMotorPolicy(typeName?: string | null): boolean {
+  if (!typeName) return false;
+  const lower = typeName.toLowerCase().trim();
+  return (
+    lower === 'motor' ||
+    lower.includes('motor') ||
+    lower.includes('vehicle') ||
+    lower.includes('car') ||
+    lower.includes('bike') ||
+    lower.includes('wheeler') ||
+    lower.includes('auto') ||
+    lower.includes('bus') ||
+    lower.includes('truck') ||
+    lower.includes('cab') ||
+    lower.includes('tractor') ||
+    lower.includes('taxi')
+  );
+}
+
 export function validateGst(raw: string): boolean {
   return /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(raw.toUpperCase());
 }
@@ -221,4 +240,32 @@ export function keysToCamelCase<T>(obj: T): T {
     }
   }
   return obj;
+}
+
+export function formatSmartClientName(name: string): string {
+  if (!name) return name;
+  const normalizedHyphens = name.replace(/\s*-\s*/g, ' - ');
+  const clean = normalizedHyphens.trim().replace(/\s+/g, ' ');
+  return clean
+    .split(' ')
+    .map((word) => {
+      if (word === '-') return '-';
+      const upper = word.toUpperCase();
+      if (
+        /^\d+[A-Z]+$/.test(upper) ||
+        /^[A-Z]+\d+$/.test(upper) ||
+        /^(MAF|GST|NCB|TP|OD|HP|PA|WC|RTO|IDV|II|III|IV|V)$/.test(upper) ||
+        (/^[A-Z]\.?$/.test(upper) && word === upper)
+      ) {
+        return upper;
+      }
+      return word.replace(/([a-zA-Z0-9]+)/g, (match) => {
+        const matchUpper = match.toUpperCase();
+        if (/^\d+[A-Z]+$/.test(matchUpper) || /^(MAF|GST|NCB|TP|OD|HP|PA|WC)$/.test(matchUpper)) {
+          return matchUpper;
+        }
+        return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+      });
+    })
+    .join(' ');
 }

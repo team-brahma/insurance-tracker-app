@@ -9,22 +9,18 @@ export const clientRepository = {
     limit = 20,
     exactMobile?: string,
     exactName?: string,
+    isOutsourced?: boolean,
+    associateAgentId?: string,
   ) {
     const db = getDb();
     const skip = (page - 1) * limit;
 
     let where: Record<string, unknown> = { agentId };
 
-    // Strip empty-string sentinels so the logic below works correctly.
-    // Axios/Fastify may pass empty strings for absent params.
     const mobile = exactMobile && exactMobile.trim().length > 0 ? exactMobile.trim() : undefined;
     const name = exactName && exactName.trim().length > 0 ? exactName.trim() : undefined;
 
     if (mobile && name) {
-      // Extract last 10 digits of mobile so enquiries stored as
-      // "9876543212" still match client records stored as "+919876543212".
-      // Uses endsWith (not contains) to avoid accidentally matching
-      // other clients whose numbers share a longer common substring.
       const digits = mobile.replace(/\D/g, '').slice(-10);
       where = {
         agentId,
@@ -39,17 +35,30 @@ export const clientRepository = {
     } else if (name) {
       where = { agentId, insuredName: name };
     } else if (search) {
-      // General search: match on either insuredName or mobileNumber
       where = {
         agentId,
-        OR: [{ insuredName: { contains: search } }, { mobileNumber: { contains: search } }],
+        OR: [
+          { insuredName: { contains: search } },
+          { mobileNumber: { contains: search } },
+          { associateAgent: { name: { contains: search } } },
+        ],
       };
+    }
+
+    if (isOutsourced !== undefined) {
+      where.isOutsourced = isOutsourced;
+    }
+    if (associateAgentId) {
+      where.associateAgentId = associateAgentId;
     }
 
     const [data, total] = await Promise.all([
       db.client.findMany({
         where,
-        include: { policies: { include: { policyType: true, insuranceProvider: true } } },
+        include: {
+          associateAgent: true,
+          policies: { include: { policyType: true, insuranceProvider: true, associateAgent: true } },
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -67,18 +76,27 @@ export const clientRepository = {
     const db = getDb();
     return db.client.findFirst({
       where: { id, agentId },
-      include: { policies: { include: { policyType: true, insuranceProvider: true } } },
+      include: {
+        associateAgent: true,
+        policies: { include: { policyType: true, insuranceProvider: true, associateAgent: true } },
+      },
     });
   },
 
   async findByMobile(agentId: string, mobileNumber: string) {
     const db = getDb();
-    return db.client.findFirst({ where: { mobileNumber, agentId } });
+    return db.client.findFirst({
+      where: { mobileNumber, agentId },
+      include: { associateAgent: true },
+    });
   },
 
   async findByName(agentId: string, name: string) {
     const db = getDb();
-    return db.client.findFirst({ where: { insuredName: name, agentId } });
+    return db.client.findFirst({
+      where: { insuredName: name, agentId },
+      include: { associateAgent: true },
+    });
   },
 
   async findOrCreate(
@@ -86,6 +104,8 @@ export const clientRepository = {
     data: {
       insuredName: string;
       mobileNumber: string;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
     },
   ) {
     const existing = await this.findByName(agentId, data.insuredName);
@@ -99,6 +119,8 @@ export const clientRepository = {
     data: {
       insuredName: string;
       mobileNumber: string;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
     },
   ) {
     const db = getDb();
@@ -111,11 +133,25 @@ export const clientRepository = {
         agentId,
         insuredName: data.insuredName,
         mobileNumber: data.mobileNumber,
+        isOutsourced: data.isOutsourced ?? false,
+        associateAgentId: data.associateAgentId || null,
+      },
+      include: {
+        associateAgent: true,
       },
     });
   },
 
-  async update(agentId: string, id: string, data: { insuredName?: string; mobileNumber?: string }) {
+  async update(
+    agentId: string,
+    id: string,
+    data: {
+      insuredName?: string;
+      mobileNumber?: string;
+      isOutsourced?: boolean;
+      associateAgentId?: string | null;
+    },
+  ) {
     const db = getDb();
     const existing = await db.client.findFirst({ where: { id, agentId } });
     if (!existing) return null;
@@ -130,7 +166,16 @@ export const clientRepository = {
     const updateData: Record<string, unknown> = {};
     if (data.insuredName !== undefined) updateData.insuredName = data.insuredName;
     if (data.mobileNumber !== undefined) updateData.mobileNumber = data.mobileNumber;
-    return db.client.update({ where: { id }, data: updateData });
+    if (data.isOutsourced !== undefined) updateData.isOutsourced = data.isOutsourced;
+    if (data.associateAgentId !== undefined) updateData.associateAgentId = data.associateAgentId;
+
+    return db.client.update({
+      where: { id },
+      data: updateData,
+      include: {
+        associateAgent: true,
+      },
+    });
   },
 
   async delete(agentId: string, id: string) {

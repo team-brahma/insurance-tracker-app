@@ -55,6 +55,8 @@ export const createPolicySchema = z.object({
   insuranceProviderId: z.string().nullish(),
   enquiryId: z.string().nullish(),
   clientId: z.string().nullish(),
+  isOutsourced: z.boolean().optional(),
+  associateAgentId: z.string().nullish(),
 });
 
 export const updatePolicySchema = z.object({
@@ -109,6 +111,8 @@ export const updatePolicySchema = z.object({
   claimAmount: z.number().nullish(),
   insuranceProviderId: z.string().nullish(),
   clientId: z.string().nullish(),
+  isOutsourced: z.boolean().optional(),
+  associateAgentId: z.string().nullish(),
 });
 
 export const updatePolicyStatusSchema = z.object({

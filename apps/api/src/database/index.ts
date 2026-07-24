@@ -15,7 +15,7 @@ export function getDb(): PrismaClient {
       user: decodeURIComponent(url.username),
       password: decodeURIComponent(url.password),
       database: url.pathname.replace('/', ''),
-      connectionLimit: 5,
+      connectionLimit: 15,
       allowPublicKeyRetrieval: true,
     });
 

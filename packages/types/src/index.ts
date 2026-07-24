@@ -52,25 +52,52 @@ export interface PolicyTypeMaster extends BaseEntity {
   name: string;
 }
 
+export interface InsuranceProviderMaster extends BaseEntity {
+  name: string;
+}
+
 export enum RenewalStatus {
   PENDING = 'PENDING',
   REMINDED = 'REMINDED',
   RENEWED = 'RENEWED',
   NOT_RENEWED = 'NOT_RENEWED',
   LAPSED = 'LAPSED',
+  INACTIVE = 'INACTIVE',
 }
 
 export type UrgencyBucket = 'overdue' | 'due7' | 'due30' | 'future';
 
+export interface AssociateAgent extends BaseEntity {
+  agentId: string;
+  name: string;
+  mobileNumber: string;
+  agencyName: string | null;
+  notes: string | null;
+}
+
+export interface CreateAssociateAgentDto {
+  name: string;
+  mobileNumber: string;
+  agencyName?: string | null;
+  notes?: string | null;
+}
+
+export type UpdateAssociateAgentDto = Partial<CreateAssociateAgentDto>;
+
 export interface Client extends BaseEntity {
   insuredName: string;
   mobileNumber: string;
+  isOutsourced?: boolean;
+  associateAgentId?: string | null;
+  associateAgent?: AssociateAgent | null;
 }
 
 export interface Policy extends BaseEntity {
   clientId: string;
   policyTypeId: string;
   policyType: PolicyTypeMaster;
+  insuranceProviderId?: string | null;
+  insuranceProvider?: InsuranceProviderMaster | null;
   vehicleNumber: string | null;
   policyNumber: string | null;
   referenceNote: string | null;
@@ -87,6 +114,9 @@ export interface Policy extends BaseEntity {
   claimAmount: number | null;
   lastRemindedAt: string | null;
   insuredPersonName: string | null;
+  isOutsourced?: boolean;
+  associateAgentId?: string | null;
+  associateAgent?: AssociateAgent | null;
 }
 
 export interface PolicyWithClient extends Policy {
@@ -119,6 +149,7 @@ export interface PolicyStats {
   renewed: number;
   notRenewed: number;
   lapsed: number;
+  inactive: number;
 }
 
 export interface CreatePolicyDto {
@@ -128,6 +159,7 @@ export interface CreatePolicyDto {
   mobileNumber?: string | null;
   referenceNote?: string | null;
   policyTypeId: string;
+  insuranceProviderId?: string | null;
   vehicleNumber?: string | null;
   policyNumber?: string | null;
   typeNote?: string | null;
@@ -141,6 +173,8 @@ export interface CreatePolicyDto {
   claimDate?: string | null;
   claimAmount?: number | null;
   insuredPersonName?: string | null;
+  isOutsourced?: boolean;
+  associateAgentId?: string | null;
 }
 
 export type UpdatePolicyDto = Partial<CreatePolicyDto>;
@@ -148,6 +182,8 @@ export type UpdatePolicyDto = Partial<CreatePolicyDto>;
 export interface CreateClientDto {
   insuredName: string;
   mobileNumber: string;
+  isOutsourced?: boolean;
+  associateAgentId?: string | null;
 }
 
 export type UpdateClientDto = Partial<CreateClientDto>;

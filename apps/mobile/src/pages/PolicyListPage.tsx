@@ -11,6 +11,8 @@ import {
   X,
   Calendar,
   Plus,
+  UserCheck,
+  Users,
 } from 'lucide-react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -297,23 +299,32 @@ export default function PolicyListPage() {
                 </button>
               )}
             </div>
-            {/* Filter button — only on mobile/tablet (desktop has inline panel) */}
+            {/* Filter button — shows X to clear in 1 click when filters active */}
             <button
               type="button"
               onClick={() => {
-                setTempFilterTypes(filterTypes);
-                setTempFilterStatuses(filterStatuses);
-                setShowFilters(true);
+                if (activeFilterCount > 0) {
+                  setFilterTypes([]);
+                  setFilterStatuses([]);
+                  setTempFilterTypes([]);
+                  setTempFilterStatuses([]);
+                  history.replace('/policies');
+                } else {
+                  setTempFilterTypes(filterTypes);
+                  setTempFilterStatuses(filterStatuses);
+                  setShowFilters(true);
+                }
               }}
               className={cn(
-                'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all',
+                'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all cursor-pointer',
                 activeFilterCount > 0
-                  ? 'border-slate bg-slate text-white shadow-[0_6px_20px_rgba(15,118,110,0.28)]'
+                  ? 'border-slate bg-slate text-white shadow-[0_6px_20px_rgba(15,118,110,0.28)] hover:bg-slate-soft'
                   : 'border-line-strong bg-surface text-ink-soft hover:bg-paper',
               )}
-              aria-label="Open filters"
+              aria-label={activeFilterCount > 0 ? 'Clear active filters' : 'Open filters'}
+              title={activeFilterCount > 0 ? 'Clear active filters' : 'Open filters'}
             >
-              <SlidersHorizontal size={16} />
+              {activeFilterCount > 0 ? <X size={18} className="stroke-[2.5]" /> : <SlidersHorizontal size={16} />}
               {activeFilterCount > 0 && (
                 <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-surface bg-red-edge" />
               )}
@@ -324,7 +335,21 @@ export default function PolicyListPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <Badge tone="accent">{`${String(totalCount)} policies`}</Badge>
             {activeFilterCount > 0 && (
-              <Badge tone="neutral">{`${String(activeFilterCount)} filter${activeFilterCount > 1 ? 's' : ''}`}</Badge>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterTypes([]);
+                  setFilterStatuses([]);
+                  setTempFilterTypes([]);
+                  setTempFilterStatuses([]);
+                  history.replace('/policies');
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate/30 bg-slate/15 px-2.5 py-1 text-xs font-bold text-slate hover:bg-slate/25 dark:bg-slate/25 dark:hover:bg-slate/40 transition cursor-pointer"
+                title="Click to clear active filters"
+              >
+                <span>{`${String(activeFilterCount)} filter${activeFilterCount > 1 ? 's' : ''}`}</span>
+                <X size={13} className="stroke-[2.5]" />
+              </button>
             )}
           </div>
 
@@ -480,6 +505,24 @@ export default function PolicyListPage() {
 
                         {/* Tags */}
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          {policy.insuredPersonName && policy.client?.insuredName && (
+                            <Badge
+                              tone="neutral"
+                              className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 font-semibold normal-case tracking-normal flex items-center gap-1"
+                            >
+                              <Users size={10} className="text-sky-500 shrink-0" />
+                              Client: {policy.client.insuredName}
+                            </Badge>
+                          )}
+                          {(policy.isOutsourced || policy.associateAgent) && (
+                            <Badge
+                              tone="neutral"
+                              className="border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-semibold normal-case tracking-normal flex items-center gap-1"
+                            >
+                              <UserCheck size={10} className="text-purple-500 shrink-0" />
+                              Outsourced{policy.associateAgent ? `: ${policy.associateAgent.name}` : ''}
+                            </Badge>
+                          )}
                           <Badge tone="neutral">{policy.policyType.name}</Badge>
                           {policy.insuranceProvider && (
                             <Badge
@@ -650,6 +693,10 @@ export default function PolicyListPage() {
               onClick={() => {
                 setTempFilterTypes([]);
                 setTempFilterStatuses([]);
+                setFilterTypes([]);
+                setFilterStatuses([]);
+                setShowFilters(false);
+                history.replace('/policies');
               }}
             >
               Clear all

@@ -44,11 +44,12 @@ export function errorHandler(
   }
 
   // ── Handle unexpected/programming errors ─────────────────────────────────
+  console.error('[500 Error]', error);
   void reply.code(HTTP_STATUS.INTERNAL_SERVER_ERROR).send({
     success: false,
     error: {
       code: ERROR_CODES.INTERNAL_ERROR,
-      message: 'An unexpected error occurred',
+      message: error.message || 'An unexpected error occurred',
     },
     statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
   });
