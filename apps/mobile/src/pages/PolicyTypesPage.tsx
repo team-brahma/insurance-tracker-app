@@ -23,6 +23,7 @@ import {
 } from '@features/policyTypes/index.js';
 import type { PolicyTypeMaster } from '@repo/types';
 import { initials } from '@repo/utils';
+import { useCardGridWidth } from '@repo/hooks';
 import { cn } from '@utils/Cn.js';
 
 const initialsColors = [
@@ -97,6 +98,8 @@ export default function PolicyTypesPage() {
 
   const allPolicyTypes = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
+  const cardMinWidth = useCardGridWidth(allPolicyTypes.map((t) => t.name));
+
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
@@ -138,10 +141,8 @@ export default function PolicyTypesPage() {
         toast.success(`Policy type "${values.name}" created successfully.`);
       }
       setIsOpen(false);
-    } catch (err) {
-      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      const msg = axiosError.response?.data?.message ?? axiosError.message ?? 'Operation failed.';
-      toast.error(msg);
+    } catch {
+      // Error handled globally by Query MutationCache in App.tsx
     }
   };
 
@@ -151,13 +152,8 @@ export default function PolicyTypesPage() {
       await deleteMutation.mutateAsync(deleteTargetId);
       toast.success('Policy type deleted successfully.');
       setIsDeleteOpen(false);
-    } catch (err) {
-      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      const msg =
-        axiosError.response?.data?.message ??
-        axiosError.message ??
-        'Failed to delete policy type.';
-      toast.error(msg);
+    } catch {
+      // Error handled globally by Query MutationCache in App.tsx
     }
   };
 
@@ -239,7 +235,8 @@ export default function PolicyTypesPage() {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr"
+            className="grid gap-4 sm:gap-5 min-w-0"
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardMinWidth}px, 1fr))` }}
           >
             {allPolicyTypes.map((type) => (
               <motion.div key={type.id} variants={cardVariant} layout className="h-full">
@@ -256,7 +253,7 @@ export default function PolicyTypesPage() {
                         {initials(type.name)}
                       </div>
                       <div className="min-w-0 flex-1 text-left">
-                        <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
+                        <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate leading-snug">
                           {type.name}
                         </h3>
                       </div>

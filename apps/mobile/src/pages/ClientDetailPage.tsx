@@ -31,6 +31,31 @@ const urgencyColors: Record<string, string> = {
   future: 'bg-gray-edge',
 };
 
+const initialsColors = [
+  'bg-sky-100 text-sky-700 dark:bg-sky-950/45 dark:text-sky-300 border-sky-200/40',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-300 border-emerald-200/40',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950/45 dark:text-amber-300 border-amber-200/40',
+  'bg-rose-100 text-rose-700 dark:bg-rose-950/45 dark:text-rose-300 border-rose-200/40',
+  'bg-violet-100 text-violet-700 dark:bg-violet-950/45 dark:text-violet-300 border-violet-200/40',
+  'bg-teal-100 text-teal-700 dark:bg-teal-950/45 dark:text-teal-300 border-teal-200/40',
+];
+
+function getInitialsColor(name: string) {
+  const sum = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return initialsColors[sum % initialsColors.length] ?? initialsColors[0] ?? '';
+}
+
+function statusTone(
+  status: string,
+): 'pending' | 'reminded' | 'renewed' | 'notRenewed' | 'lapsed' | 'inactive' {
+  if (status === 'PENDING') return 'pending';
+  if (status === 'REMINDED') return 'reminded';
+  if (status === 'RENEWED') return 'renewed';
+  if (status === 'NOT_RENEWED') return 'notRenewed';
+  if (status === 'INACTIVE') return 'inactive';
+  return 'lapsed';
+}
+
 function daysLabel(days: number): string {
   if (days < 0) {
     const abs = Math.abs(days);
@@ -116,26 +141,16 @@ export default function ClientDetailPage() {
               <span className="text-ink font-bold">{name}</span>
             </nav>
 
-            {/* Mobile Header Bar */}
-            <div className="flex items-center justify-between md:hidden mb-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5"
-                onClick={() => {
-                  history.goBack();
-                }}
-              >
+            {/* Mobile/Compact Action Bar */}
+            <div className="flex xl:hidden items-center justify-between w-full mb-4">
+              <Button variant="outline" size="sm" onClick={() => history.goBack()} className="flex items-center gap-1.5">
                 <ArrowLeft size={14} />
                 <span>Back</span>
               </Button>
-
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    history.push(`/clients/${id}/edit`, { from: location.pathname });
-                  }}
+                  onClick={() => history.push(`/clients/${id}/edit`, { from: location.pathname })}
                   className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-surface text-ink-soft shadow-sm hover:text-slate active:scale-95 transition-all"
                   aria-label="Edit client"
                 >
@@ -155,13 +170,13 @@ export default function ClientDetailPage() {
             </div>
 
             {/* Main Header Layout */}
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
               <div className="flex items-start gap-3 sm:gap-4.5 min-w-0">
                 {/* Desktop-only Back button */}
                 <Button
                   variant="outline"
                   size="sm"
-                  className="!hidden md:!flex items-center gap-1.5"
+                  className="!hidden xl:!flex items-center gap-1.5"
                   onClick={() => {
                     history.goBack();
                   }}
@@ -181,7 +196,7 @@ export default function ClientDetailPage() {
                     {initials(name)}
                   </div>
                   <div className="text-left min-w-0">
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-ink leading-tight tracking-tight break-words">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-ink leading-tight tracking-tight break-words">
                       {name}
                     </h2>
                   </div>
@@ -189,7 +204,7 @@ export default function ClientDetailPage() {
               </div>
 
               {/* Desktop-only Action buttons */}
-              <div className="hidden md:flex gap-2">
+              <div className="hidden xl:flex gap-2">
                 <Button variant="outline" onClick={() => history.push(`/clients/${id}/edit`, { from: location.pathname })}>
                   Edit
                 </Button>
@@ -312,10 +327,17 @@ export default function ClientDetailPage() {
                       {policies.map((policy: Policy) => {
                         const days = daysToExpiry(policy.endDate);
                         const urgency = urgencyBucket(days);
+                        const isRenewed = policy.renewalStatus === 'RENEWED';
+
                         return (
                           <SurfaceCard
                             key={policy.id}
-                            className="group cursor-pointer overflow-hidden p-0 sm:p-0 lg:p-0 backdrop-blur-sm border border-line hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)] active:scale-[0.99] transition-all duration-300"
+                            className={cn(
+                              'group cursor-pointer overflow-hidden p-0 sm:p-0 lg:p-0 backdrop-blur-sm border transition-all duration-300 active:scale-[0.99] relative',
+                              isRenewed
+                                ? 'border-cyan-500/40 dark:border-cyan-400/50 bg-gradient-to-r from-cyan-500/[0.03] via-surface to-surface shadow-[0_4px_20px_rgba(6,182,212,0.1)] hover:border-cyan-500 hover:shadow-[0_8px_30px_rgba(6,182,212,0.2)]'
+                                : 'border border-line hover:border-slate/40 dark:hover:border-slate/40 hover:shadow-[0_12px_40px_rgba(15,118,110,0.06)] dark:hover:shadow-[0_12px_40px_rgba(45,212,191,0.04)]',
+                            )}
                             onClick={() => {
                               history.push(`/policies/${policy.id}`);
                             }}
@@ -323,29 +345,41 @@ export default function ClientDetailPage() {
                             <div className="flex items-stretch">
                               <div
                                 className={cn(
-                                  'w-1.5 flex-none transition-all duration-300 group-hover:w-2',
-                                  urgencyColors[urgency] ?? 'bg-gray-edge',
+                                  'w-2 flex-none transition-all duration-300 group-hover:w-2.5',
+                                  isRenewed
+                                    ? 'bg-gradient-to-b from-cyan-400 via-sky-500 to-blue-600 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                                    : urgencyColors[urgency] ?? 'bg-gray-edge',
                                 )}
                               />
                               <div className="flex min-w-0 flex-1 flex-col justify-between">
                                 <div className="p-4 flex flex-col gap-2.5">
                                   <div className="flex items-start gap-3">
+                                    <div
+                                      className={cn(
+                                        'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
+                                        isRenewed
+                                          ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300 border-cyan-300/60 shadow-sm'
+                                          : getInitialsColor(policy.insuredPersonName ?? client.insuredName),
+                                      )}
+                                    >
+                                      {initials(policy.insuredPersonName ?? client.insuredName)}
+                                    </div>
                                     <div className="min-w-0 flex-1 text-left">
-                                      <h3 className="text-sm font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
-                                        {policy.policyType?.name ?? '—'}
-                                        {policy.insuredPersonName && (
-                                          <span className="text-ink-faint font-semibold ml-1.5 text-xs">
-                                            ({policy.insuredPersonName})
-                                          </span>
-                                        )}
+                                      <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
+                                        {policy.insuredPersonName ?? client.insuredName}
                                       </h3>
                                       <p
                                         className={cn(
-                                          'mt-0.5 text-xs font-bold leading-normal',
-                                          urgency === 'overdue' && 'text-red-fg',
-                                          urgency === 'due7' && 'text-amber-fg',
-                                          urgency === 'due30' && 'text-green-fg',
-                                          urgency === 'future' && 'text-ink-faint',
+                                          'mt-0.5 text-xs font-bold leading-normal flex items-center gap-1.5',
+                                          isRenewed
+                                            ? 'text-cyan-600 dark:text-cyan-400 font-extrabold'
+                                            : urgency === 'overdue'
+                                            ? 'text-red-fg'
+                                            : urgency === 'due7'
+                                            ? 'text-amber-fg'
+                                            : urgency === 'due30'
+                                            ? 'text-green-fg'
+                                            : 'text-ink-faint',
                                         )}
                                       >
                                         {daysLabel(days)}
@@ -354,6 +388,17 @@ export default function ClientDetailPage() {
                                   </div>
 
                                   <div className="flex flex-wrap items-center gap-1.5">
+                                    {policy.policyType?.name && (
+                                      <Badge tone="neutral">{policy.policyType.name}</Badge>
+                                    )}
+                                    {policy.insuranceProvider?.name && (
+                                      <Badge
+                                        tone="neutral"
+                                        className="border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-semibold normal-case tracking-normal"
+                                      >
+                                        {policy.insuranceProvider.name}
+                                      </Badge>
+                                    )}
                                     {policy.policyNumber && (
                                       <Badge tone="neutral" className="font-mono">
                                         {policy.policyNumber}
@@ -368,7 +413,14 @@ export default function ClientDetailPage() {
                                         Vehicle No : Pending
                                       </Badge>
                                     ) : null}
-                                    <Badge tone={statusTone(policy.renewalStatus)} dot>
+                                    <Badge
+                                      tone={statusTone(policy.renewalStatus)}
+                                      dot={!isRenewed}
+                                      className={cn(
+                                        isRenewed &&
+                                          'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 font-extrabold',
+                                      )}
+                                    >
                                       {RENEWAL_STATUS_LABELS[policy.renewalStatus] ?? policy.renewalStatus}
                                     </Badge>
                                   </div>
@@ -423,13 +475,4 @@ export default function ClientDetailPage() {
       </IonFooter>
     </IonPage>
   );
-}
-
-function statusTone(status: string) {
-  if (status === 'PENDING') return 'pending' as const;
-  if (status === 'REMINDED') return 'reminded' as const;
-  if (status === 'RENEWED') return 'renewed' as const;
-  if (status === 'NOT_RENEWED') return 'notRenewed' as const;
-  if (status === 'INACTIVE') return 'inactive' as const;
-  return 'lapsed' as const;
 }

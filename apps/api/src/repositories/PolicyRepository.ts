@@ -21,10 +21,10 @@ export const policyRepository = {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = { agentId: filters.agentId };
-    const AND: Record<string, unknown>[] = [];
+    const baseAND: Record<string, unknown>[] = [];
 
     if (filters.search) {
-      AND.push({
+      baseAND.push({
         OR: [
           { client: { insuredName: { contains: filters.search } } },
           { insuredPersonName: { contains: filters.search } },
@@ -37,64 +37,63 @@ export const policyRepository = {
 
     if (filters.policyType) {
       if (Array.isArray(filters.policyType)) {
-        AND.push({ policyTypeId: { in: filters.policyType } });
+        baseAND.push({ policyTypeId: { in: filters.policyType } });
       } else {
-        AND.push({ policyTypeId: filters.policyType });
-      }
-    }
-
-    if (filters.renewalStatus) {
-      if (Array.isArray(filters.renewalStatus)) {
-        AND.push({ renewalStatus: { in: filters.renewalStatus } });
-      } else {
-        AND.push({ renewalStatus: filters.renewalStatus });
+        baseAND.push({ policyTypeId: filters.policyType });
       }
     }
 
     if (filters.isOutsourced !== undefined) {
-      AND.push({ isOutsourced: filters.isOutsourced });
+      baseAND.push({ isOutsourced: filters.isOutsourced });
     }
 
     if (filters.associateAgentId) {
-      AND.push({ associateAgentId: filters.associateAgentId });
+      baseAND.push({ associateAgentId: filters.associateAgentId });
     }
 
-    const baseWhereForUrgency = { ...where };
-    if (AND.length > 0) {
-      baseWhereForUrgency.AND = [...AND];
+    const dataAND = [...baseAND];
+
+    if (filters.renewalStatus) {
+      if (Array.isArray(filters.renewalStatus)) {
+        dataAND.push({ renewalStatus: { in: filters.renewalStatus } });
+      } else {
+        dataAND.push({ renewalStatus: filters.renewalStatus });
+      }
     }
 
-    if (filters.urgency) {
+    if (filters.urgency && !filters.renewalStatus) {
+      dataAND.push({ renewalStatus: { notIn: ['RENEWED', 'INACTIVE'] } });
+
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       switch (filters.urgency) {
         case 'overdue':
-          AND.push({ endDate: { lt: today } });
+          dataAND.push({ endDate: { lt: today } });
           break;
         case 'due7': {
           const due7 = new Date(today);
           due7.setDate(due7.getDate() + 7);
-          AND.push({ endDate: { gte: today, lte: due7 } });
+          dataAND.push({ endDate: { gte: today, lte: due7 } });
           break;
         }
         case 'due30': {
           const due30 = new Date(today);
           due30.setDate(due30.getDate() + 30);
-          AND.push({ endDate: { gte: today, lte: due30 } });
+          dataAND.push({ endDate: { gte: today, lte: due30 } });
           break;
         }
         case 'future': {
           const future = new Date(today);
           future.setDate(future.getDate() + 30);
-          AND.push({ endDate: { gt: future } });
+          dataAND.push({ endDate: { gt: future } });
           break;
         }
       }
     }
 
-    if (AND.length > 0) {
-      where.AND = AND;
+    if (dataAND.length > 0) {
+      where.AND = dataAND;
     }
 
     const now = new Date();
@@ -104,42 +103,53 @@ export const policyRepository = {
     const due30Date = new Date(today);
     due30Date.setDate(due30Date.getDate() + 30);
 
-    const buildWhereWithUrgencyFilter = (urgencyFilter: Record<string, unknown>) => {
-      const queryWhere = { ...baseWhereForUrgency };
-      const queryAND = Array.isArray(baseWhereForUrgency.AND)
-        ? [...(baseWhereForUrgency.AND as Record<string, unknown>[])]
-        : [];
-      queryAND.push(urgencyFilter);
-      queryWhere.AND = queryAND;
-      return queryWhere;
+    const buildCountWhere = (...extraFilters: Record<string, unknown>[]) => {
+      const countWhere: Record<string, unknown> = { agentId: filters.agentId };
+      const countAND = [...baseAND, ...extraFilters];
+      if (countAND.length > 0) {
+        countWhere.AND = countAND;
+      }
+      return countWhere;
     };
 
-    const [data, total, totalMatching, overdueCount, due7Count, due30Count, futureCount, inactiveCount] =
-      await Promise.all([
-        db.policy.findMany({
-          where,
-          include: {
-            client: { include: { associateAgent: true } },
-            policyType: true,
-            insuranceProvider: true,
-            associateAgent: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        db.policy.count({ where }),
-        db.policy.count({ where: baseWhereForUrgency }),
-        db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { lt: today } }) }),
-        db.policy.count({
-          where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due7Date } }),
-        }),
-        db.policy.count({
-          where: buildWhereWithUrgencyFilter({ endDate: { gte: today, lte: due30Date } }),
-        }),
-        db.policy.count({ where: buildWhereWithUrgencyFilter({ endDate: { gt: due30Date } }) }),
-        db.policy.count({ where: buildWhereWithUrgencyFilter({ renewalStatus: 'INACTIVE' }) }),
-      ]);
+    const notUrgentOrInactive = { renewalStatus: { notIn: ['RENEWED', 'INACTIVE'] } };
+
+    const [
+      data,
+      total,
+      totalMatching,
+      overdueCount,
+      due7Count,
+      due30Count,
+      futureCount,
+      renewedCount,
+      inactiveCount,
+    ] = await Promise.all([
+      db.policy.findMany({
+        where,
+        include: {
+          client: { include: { associateAgent: true } },
+          policyType: true,
+          insuranceProvider: true,
+          associateAgent: true,
+        },
+        orderBy: [{ endDate: 'asc' }, { client: { insuredName: 'asc' } }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+      }),
+      db.policy.count({ where }),
+      db.policy.count({ where: buildCountWhere() }),
+      db.policy.count({ where: buildCountWhere({ endDate: { lt: today } }, notUrgentOrInactive) }),
+      db.policy.count({
+        where: buildCountWhere({ endDate: { gte: today, lte: due7Date } }, notUrgentOrInactive),
+      }),
+      db.policy.count({
+        where: buildCountWhere({ endDate: { gte: today, lte: due30Date } }, notUrgentOrInactive),
+      }),
+      db.policy.count({ where: buildCountWhere({ endDate: { gt: due30Date } }, notUrgentOrInactive) }),
+      db.policy.count({ where: buildCountWhere({ renewalStatus: 'RENEWED' }) }),
+      db.policy.count({ where: buildCountWhere({ renewalStatus: 'INACTIVE' }) }),
+    ]);
 
     return {
       data,
@@ -153,6 +163,7 @@ export const policyRepository = {
           due7: due7Count,
           due30: due30Count,
           future: futureCount,
+          renewed: renewedCount,
           inactive: inactiveCount,
           all: totalMatching,
         },

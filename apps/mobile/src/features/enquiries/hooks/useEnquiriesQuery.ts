@@ -72,7 +72,9 @@ export function useDeleteEnquiryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => enquiryService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: enquiryKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: enquiryKeys.history(id) });
       void queryClient.invalidateQueries({ queryKey: enquiryKeys.all });
       void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     },

@@ -251,7 +251,7 @@ export default function ClientListPage() {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 min-w-0"
           >
             {allClients.map((client) => {
               const policyCount = client.policies?.length ?? 0;

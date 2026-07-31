@@ -29,6 +29,7 @@ import {
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { PolicyDocumentsSection } from '@features/policies/components/PolicyDocumentsSection.js';
 import {
   usePolicyQuery,
   useUpdatePolicyStatusMutation,
@@ -447,7 +448,7 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
 
           <div className="max-w-6xl mx-auto relative z-10 px-4 sm:px-6 lg:px-8 pt-5 pb-4 sm:pt-5 sm:pb-6">
             {/* Breadcrumb — desktop */}
-            <nav className="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
+            <nav className="hidden xl:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
               <button
                 type="button"
                 onClick={() => {
@@ -461,8 +462,8 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
               <span className="text-ink font-bold">{policy.client.insuredName}</span>
             </nav>
 
-            {/* Mobile-only Top Action Bar */}
-            <div className="flex md:hidden items-center justify-between w-full mb-4">
+            {/* Mobile/Compact Top Action Bar (active when content area is narrowed) */}
+            <div className="flex xl:hidden items-center justify-between w-full mb-4">
               <Button
                 variant="outline"
                 size="sm"
@@ -505,13 +506,13 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
             </div>
 
             {/* Main Header Layout */}
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
               <div className="flex items-start gap-3 sm:gap-4.5 min-w-0">
                 {/* Desktop-only Back button */}
                 <Button
                   variant="outline"
                   size="sm"
-                  className="!hidden md:!flex items-center gap-1.5"
+                  className="!hidden xl:!flex items-center gap-1.5"
                   onClick={() => {
                     history.goBack();
                   }}
@@ -533,7 +534,7 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                   </motion.div>
 
                   <div className="text-left min-w-0">
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-ink leading-tight tracking-tight break-words">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-ink leading-tight tracking-tight break-words">
                       {policy.insuredPersonName || policy.client.insuredName}
                     </h2>
 
@@ -609,7 +610,7 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
               </div>
 
               {/* Desktop-only Action buttons */}
-              <div className="hidden md:flex gap-2 shrink-0 justify-end">
+              <div className="hidden xl:flex gap-2 shrink-0 justify-end">
                 <motion.button
                   whileHover={{ scale: 1.02, translateY: -1 }}
                   whileTap={{ scale: 0.98 }}
@@ -969,6 +970,12 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                 </div>
               </section>
             </div>
+
+            {/* Policy Documents (Yearly PDFs) */}
+            <PolicyDocumentsSection
+              policyId={policy.id}
+              defaultYear={new Date(policy.endDate).getFullYear()}
+            />
 
             {/* Status Transition History Timeline */}
             <StatusHistorySection history={historyData} />

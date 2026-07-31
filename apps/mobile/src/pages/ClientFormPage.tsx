@@ -210,7 +210,7 @@ export default function ClientFormPage() {
             <div className="absolute -top-12 -left-12 w-64 h-64 rounded-full blur-3xl opacity-60 pointer-events-none bg-teal-400/20" />
 
             <div className="max-w-6xl mx-auto relative z-10 px-4 sm:px-6 lg:px-8 pt-2 pb-2.5 sm:pt-4 sm:pb-5">
-              <nav className="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
+              <nav className="hidden xl:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -234,7 +234,7 @@ export default function ClientFormPage() {
                 <span className="text-ink font-bold">Edit Details</span>
               </nav>
 
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 font-sans">
                   <div className="flex items-center gap-3 min-w-0">
                     <motion.div
@@ -290,7 +290,7 @@ export default function ClientFormPage() {
             <div className="absolute -top-12 -left-12 w-64 h-64 rounded-full blur-3xl opacity-60 pointer-events-none bg-indigo-400/20" />
 
             <div className="max-w-6xl mx-auto relative z-10 px-4 sm:px-6 lg:px-8 pt-2 pb-2.5 sm:pt-4 sm:pb-5">
-              <nav className="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
+              <nav className="hidden xl:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -301,10 +301,10 @@ export default function ClientFormPage() {
                   Clients
                 </button>
                 <span>›</span>
-                <span className="text-ink font-bold">Add New Client</span>
+                <span className="text-ink font-bold">Register New Client</span>
               </nav>
 
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 font-sans">
                   <div className="flex items-center gap-3 min-w-0">
                     <motion.div

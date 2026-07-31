@@ -70,4 +70,31 @@ export const policyService = {
     });
     return data;
   },
+
+  async uploadDocuments(
+    policyId: string,
+    documents: { year: number; fileName: string; fileData: string; fileSize?: number; mimeType?: string }[],
+    year?: number,
+  ): Promise<ApiResponse<import('@repo/types').PolicyDocument[]>> {
+    const { data } = await httpClient.post<ApiResponse<import('@repo/types').PolicyDocument[]>>(
+      `/api/v1/policies/${policyId}/documents`,
+      { year, documents },
+    );
+    return data;
+  },
+
+  async getDocuments(
+    policyId: string,
+    params?: { search?: string; page?: number; limit?: number },
+  ): Promise<PaginatedResponse<import('@repo/types').PolicyDocument>> {
+    const { data } = await httpClient.get<PaginatedResponse<import('@repo/types').PolicyDocument>>(
+      `/api/v1/policies/${policyId}/documents`,
+      { params },
+    );
+    return data;
+  },
+
+  async deleteDocument(policyId: string, docId: string): Promise<void> {
+    await httpClient.delete(`/api/v1/policies/${policyId}/documents/${docId}`);
+  },
 };

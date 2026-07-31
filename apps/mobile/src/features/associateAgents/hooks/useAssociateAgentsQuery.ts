@@ -55,7 +55,8 @@ export function useDeleteAssociateAgentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => associateAgentService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: associateAgentKeys.detail(id) });
       void queryClient.invalidateQueries({ queryKey: associateAgentKeys.all });
     },
   });

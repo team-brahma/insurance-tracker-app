@@ -49,8 +49,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           className={cn(
             'w-full h-11 rounded-xl border bg-surface font-sans text-sm text-ink',
             'placeholder:text-ink-faint outline-none transition-all',
+            '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
             'focus:border-slate focus:shadow-[0_0_0_3px_rgba(15,118,110,0.15)]',
             'disabled:opacity-50 disabled:cursor-not-allowed',
+            /* date / time: override bg-surface in dark mode so the native picker
+               icon is visible and the field matches the dark paper colour */
+            'dark:[&[type=date]]:bg-paper dark:[&[type=time]]:bg-paper',
+            'dark:[&[type=datetime-local]]:bg-paper dark:[&[type=month]]:bg-paper',
             error
               ? 'border-red-edge focus:border-red-edge focus:shadow-[0_0_0_3px_rgba(244,63,94,0.15)]'
               : 'border-line-strong',

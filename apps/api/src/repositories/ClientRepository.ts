@@ -57,7 +57,10 @@ export const clientRepository = {
         where,
         include: {
           associateAgent: true,
-          policies: { include: { policyType: true, insuranceProvider: true, associateAgent: true } },
+          policies: {
+            include: { policyType: true, insuranceProvider: true, associateAgent: true },
+            orderBy: { endDate: 'asc' },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,

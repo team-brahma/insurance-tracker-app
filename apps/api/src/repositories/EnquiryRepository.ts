@@ -18,10 +18,10 @@ export const enquiryRepository = {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = { agentId: filters.agentId };
-    const AND: Record<string, unknown>[] = [];
+    const baseAND: Record<string, unknown>[] = [];
 
     if (filters.search) {
-      AND.push({
+      baseAND.push({
         OR: [
           { name: { contains: filters.search } },
           { mobileNumber: { contains: filters.search } },
@@ -32,27 +32,32 @@ export const enquiryRepository = {
 
     if (filters.policyType) {
       if (Array.isArray(filters.policyType)) {
-        AND.push({ policyTypeId: { in: filters.policyType } });
+        baseAND.push({ policyTypeId: { in: filters.policyType } });
       } else {
-        AND.push({ policyTypeId: filters.policyType });
+        baseAND.push({ policyTypeId: filters.policyType });
       }
     }
+
+    const baseWhereForStatus: Record<string, unknown> = { agentId: filters.agentId };
+    if (baseAND.length > 0) {
+      baseWhereForStatus.AND = baseAND;
+    }
+
+    const dataAND = [...baseAND];
 
     if (filters.status) {
       if (Array.isArray(filters.status)) {
-        AND.push({ status: { in: filters.status } });
+        dataAND.push({ status: { in: filters.status } });
       } else {
-        AND.push({ status: filters.status });
+        dataAND.push({ status: filters.status });
       }
     }
 
-    if (AND.length > 0) {
-      where.AND = AND;
+    if (dataAND.length > 0) {
+      where.AND = dataAND;
     }
 
-    const baseWhereForStatus = { ...where };
-
-    const [data, total, openCount, convertedCount, droppedCount] = await Promise.all([
+    const [data, total, openCount, convertedCount, droppedCount, allStatusCount] = await Promise.all([
       db.enquiry.findMany({
         where,
         include: { policyType: true },
@@ -64,6 +69,7 @@ export const enquiryRepository = {
       db.enquiry.count({ where: { ...baseWhereForStatus, status: 'OPEN' } }),
       db.enquiry.count({ where: { ...baseWhereForStatus, status: 'CONVERTED' } }),
       db.enquiry.count({ where: { ...baseWhereForStatus, status: 'DROPPED' } }),
+      db.enquiry.count({ where: baseWhereForStatus }),
     ]);
 
     return {
@@ -74,10 +80,10 @@ export const enquiryRepository = {
         limit,
         totalPages: Math.ceil(total / limit),
         statusCounts: {
-          OPEN: openCount,
-          CONVERTED: convertedCount,
-          DROPPED: droppedCount,
-          all: total,
+          OPEN: openCount ?? 0,
+          CONVERTED: convertedCount ?? 0,
+          DROPPED: droppedCount ?? 0,
+          all: allStatusCount ?? 0,
         },
       },
     };

@@ -92,6 +92,28 @@ export interface Client extends BaseEntity {
   associateAgent?: AssociateAgent | null;
 }
 
+export interface PolicyDocument extends BaseEntity {
+  policyId: string;
+  year: number;
+  fileName: string;
+  fileSize: number | null;
+  mimeType: string | null;
+  downloadUrl?: string | null;
+}
+
+export interface UploadPolicyDocumentInput {
+  year: number;
+  fileName: string;
+  fileData: string;
+  fileSize?: number | null;
+  mimeType?: string | null;
+}
+
+export interface UploadPolicyDocumentsDto {
+  year?: number;
+  documents: UploadPolicyDocumentInput[];
+}
+
 export interface Policy extends BaseEntity {
   clientId: string;
   policyTypeId: string;
@@ -117,6 +139,7 @@ export interface Policy extends BaseEntity {
   isOutsourced?: boolean;
   associateAgentId?: string | null;
   associateAgent?: AssociateAgent | null;
+  documents?: PolicyDocument[];
 }
 
 export interface PolicyWithClient extends Policy {

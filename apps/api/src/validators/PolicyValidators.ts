@@ -52,7 +52,7 @@ export const createPolicySchema = z.object({
   isClaimed: z.boolean().default(false).optional(),
   claimDate: z.string().nullish(),
   claimAmount: z.number().nullish(),
-  insuranceProviderId: z.string().nullish(),
+  insuranceProviderId: z.string().min(1, 'Insurance provider is required'),
   enquiryId: z.string().nullish(),
   clientId: z.string().nullish(),
   isOutsourced: z.boolean().optional(),

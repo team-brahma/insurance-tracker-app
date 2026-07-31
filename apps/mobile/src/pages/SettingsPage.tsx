@@ -97,7 +97,7 @@ export default function SettingsPage() {
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="mt-5 sm:mt-6 lg:mt-8 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 items-stretch"
+        className="mt-5 sm:mt-6 lg:mt-8 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 items-start"
       >
         {/* Reminder cadence */}
         <motion.div variants={fadeUp}>
@@ -118,7 +118,7 @@ export default function SettingsPage() {
                     saveOffsets(Number(v), offsets[1] ?? 1);
                   }}
                   options={firstAlertOptions}
-                  className="w-28"
+                  className="w-full sm:w-28"
                 />
               </SettingsRow>
 
@@ -133,7 +133,7 @@ export default function SettingsPage() {
                     saveOffsets(offsets[0] ?? 7, Number(v));
                   }}
                   options={secondAlertOptions}
-                  className="w-28"
+                  className="w-full sm:w-28"
                 />
               </SettingsRow>
 
@@ -146,7 +146,7 @@ export default function SettingsPage() {
                   value={reminderTime}
                   onValueChange={saveReminderTime}
                   options={timeOptions}
-                  className="w-32"
+                  className="w-full sm:w-32"
                 />
               </SettingsRow>
             </div>
@@ -186,7 +186,7 @@ export default function SettingsPage() {
                   value={theme}
                   onValueChange={saveTheme}
                   options={themeOptions}
-                  className="w-32"
+                  className="w-full sm:w-32"
                 />
               </SettingsRow>
 
@@ -199,7 +199,7 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => history.push('/associate-agents')}
-                  className="gap-1 font-semibold"
+                  className="gap-1 font-semibold w-full sm:w-auto"
                 >
                   <span>Manage</span>
                   <ChevronRight size={14} />
@@ -249,15 +249,15 @@ function SettingsRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-2xl bg-paper/80 px-4 py-4">
-      <div className="flex items-center gap-3 text-left min-w-0 flex-1">
-        <span className="shrink-0">{icon}</span>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-ink">{title}</p>
-          <p className="mt-0.5 text-xs text-ink-faint">{description}</p>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-paper/80 p-4">
+      <div className="flex items-start gap-3 text-left min-w-0 flex-1">
+        <span className="shrink-0 mt-0.5">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-ink leading-snug">{title}</p>
+          <p className="mt-0.5 text-xs text-ink-faint leading-normal">{description}</p>
         </div>
       </div>
-      <div className="shrink-0 self-end sm:self-auto">{children}</div>
+      <div className="shrink-0 self-start sm:self-center">{children}</div>
     </div>
   );
 }

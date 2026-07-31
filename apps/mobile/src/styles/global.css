@@ -497,3 +497,90 @@ button,
   outline: 2px solid var(--slate) !important;
   outline-offset: 2px;
 }
+
+/* Hide native spinner arrows for number input fields */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ─── Date / Time native picker: dark-mode fixes ─────────────────────────────
+   Chrome's calendar/clock icon is a dark SVG that ignores color-scheme on the
+   input element alone. The reliable fix:
+     Light mode → icon left as-is (dark icon on light bg) ✓
+     Dark  mode → brightness(0) crushes to black, invert(1) flips to white ✓
+   color-scheme on the input still controls the popup dropdown background.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Light theme baseline */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'],
+input[type='week'] {
+  color-scheme: light;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator,
+input[type='month']::-webkit-calendar-picker-indicator,
+input[type='week']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator:hover,
+input[type='time']::-webkit-calendar-picker-indicator:hover,
+input[type='datetime-local']::-webkit-calendar-picker-indicator:hover,
+input[type='month']::-webkit-calendar-picker-indicator:hover,
+input[type='week']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Dark theme overrides */
+.dark input[type='date'],
+.dark input[type='time'],
+.dark input[type='datetime-local'],
+.dark input[type='month'],
+.dark input[type='week'] {
+  color-scheme: dark;
+  background-color: var(--paper);
+  color: var(--ink);
+}
+
+/* Force picker icon to white in dark mode:
+   brightness(0) → pure black silhouette
+   invert(1)     → pure white silhouette  */
+.dark input[type='date']::-webkit-calendar-picker-indicator,
+.dark input[type='time']::-webkit-calendar-picker-indicator,
+.dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
+.dark input[type='month']::-webkit-calendar-picker-indicator,
+.dark input[type='week']::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(1);
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.15s ease;
+}
+
+.dark input[type='date']::-webkit-calendar-picker-indicator:hover,
+.dark input[type='time']::-webkit-calendar-picker-indicator:hover,
+.dark input[type='datetime-local']::-webkit-calendar-picker-indicator:hover,
+.dark input[type='month']::-webkit-calendar-picker-indicator:hover,
+.dark input[type='week']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Ensure toast notifications appear above modal popups & backdrop overlays */
+html body [data-sonner-toaster],
+html body div[data-sonner-toaster],
+[data-sonner-toaster],
+[data-sonner-toaster] * {
+  z-index: 9999999 !important;
+}

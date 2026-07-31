@@ -71,7 +71,7 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociat
       mobileNumber: mobileValidation,
       referenceNote: z.string(),
       policyType: z.string().min(1, 'Policy type is required'),
-      insuranceProviderId: z.string().optional(),
+      insuranceProviderId: z.string().min(1, 'Insurance provider is required'),
       vehicleNumber: z.string(),
       policyNumber: z
         .string()
@@ -707,7 +707,7 @@ export default function PolicyFormPage() {
 
             <div className="max-w-6xl mx-auto relative z-10 px-4 sm:px-6 lg:px-8 pt-2 pb-2.5 sm:pt-4 sm:pb-5">
               {/* Breadcrumb — desktop */}
-              <nav className="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
+              <nav className="hidden xl:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -732,7 +732,7 @@ export default function PolicyFormPage() {
               </nav>
 
               {/* Action / Title layout */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 font-sans">
                   {/* Avatar + Title Container */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -824,7 +824,7 @@ export default function PolicyFormPage() {
 
             <div className="max-w-6xl mx-auto relative z-10 px-4 sm:px-6 lg:px-8 pt-2 pb-2.5 sm:pt-4 sm:pb-5">
               {/* Breadcrumb — desktop */}
-              <nav className="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
+              <nav className="hidden xl:flex items-center gap-1.5 text-[11px] font-semibold text-ink-faint opacity-70 mb-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -839,7 +839,7 @@ export default function PolicyFormPage() {
               </nav>
 
               {/* Action / Title layout */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 font-sans">
                   {/* Avatar + Title Container */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -1192,6 +1192,7 @@ export default function PolicyFormPage() {
                       render={({ field }) => (
                         <Select
                           label="Insurance Provider / Agency"
+                          required
                           value={field.value ?? ''}
                           onValueChange={(newValue) => {
                             field.onChange(newValue);

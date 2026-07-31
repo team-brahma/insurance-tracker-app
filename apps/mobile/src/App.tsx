@@ -62,6 +62,23 @@ setupIonicReact({
   rippleEffect: true,
 });
 
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const errObj = error as Record<string, unknown>;
+    const responseData = (errObj['response'] as { data?: { error?: { message?: string }; message?: string } })?.data;
+    if (responseData?.error?.message) {
+      return responseData.error.message;
+    }
+    if (responseData?.message) {
+      return responseData.message;
+    }
+    if (typeof errObj['message'] === 'string') {
+      return errObj['message'];
+    }
+  }
+  return 'An unexpected error occurred';
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -84,7 +101,7 @@ const queryClient = new QueryClient({
         return;
       }
 
-      const message = error instanceof Error ? error.message : 'An error occurred';
+      const message = getErrorMessage(error);
       toast.error(message, {
         description: query.meta?.errorMessage,
       });
@@ -104,7 +121,7 @@ const queryClient = new QueryClient({
     onError: (error, variables, _context, mutation) => {
       if (mutation.meta?.showToast === false) return;
 
-      const message = error instanceof Error ? error.message : 'An error occurred';
+      const message = getErrorMessage(error);
       const errorMessage = mutation.meta?.errorMessage;
       const text =
         typeof errorMessage === 'function'
@@ -335,25 +352,24 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        duration={15000}
+        toastOptions={{
+          style: {
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: '13px',
+          },
+        }}
+      />
       <TooltipProvider>
         <IonApp>
           <IonReactRouter>
             <ThemeManager />
             <AuthGate />
           </IonReactRouter>
-
-          <Toaster
-            position="top-right"
-            richColors
-            closeButton
-            duration={15000}
-            toastOptions={{
-              style: {
-                fontFamily: 'Inter, system-ui, sans-serif',
-                fontSize: '13px',
-              },
-            }}
-          />
         </IonApp>
       </TooltipProvider>
       <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />

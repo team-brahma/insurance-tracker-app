@@ -173,9 +173,17 @@ export default function EnquiryListPage() {
   const allEnquiries = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
 
   const firstPageMeta = data?.pages[0]?.meta as
-    | { statusCounts?: { OPEN: number; CONVERTED: number; DROPPED: number; all: number } }
+    | { statusCounts?: { OPEN?: number; CONVERTED?: number; DROPPED?: number; all?: number } }
     | undefined;
-  const statusCounts = firstPageMeta?.statusCounts ?? { OPEN: 0, CONVERTED: 0, DROPPED: 0, all: 0 };
+  const statusCounts = useMemo(() => {
+    const raw = firstPageMeta?.statusCounts;
+    return {
+      OPEN: raw?.OPEN ?? 0,
+      CONVERTED: raw?.CONVERTED ?? 0,
+      DROPPED: raw?.DROPPED ?? 0,
+      all: raw?.all ?? 0,
+    };
+  }, [firstPageMeta]);
   const unallEnquiriesCount = statusCounts.all;
 
   const handleDropConfirm = async (dropReason: string, dropNote?: string) => {
@@ -330,7 +338,7 @@ export default function EnquiryListPage() {
                         isActive ? 'bg-white/20 text-white' : 'bg-paper text-ink-faint',
                       )}
                     >
-                      {tab.count}
+                      {tab.count ?? 0}
                     </span>
                   </button>
                 );
@@ -385,7 +393,7 @@ export default function EnquiryListPage() {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 min-w-0"
           >
             {allEnquiries.map((enquiry) => {
               const cardStatusTone =

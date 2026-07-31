@@ -139,12 +139,12 @@ export default function DashboardPage() {
         </>
       }
     >
-      {/* ── KPI Cards — 2-col on mobile, 4-col on md+ ── */}
+      {/* ── KPI Cards — 2-col on mobile, 4-col on xl+ ── */}
       <motion.div
         variants={staggerContainer}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 auto-rows-fr"
+        className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4 auto-rows-fr"
       >
         {kpis.map((kpi) => (
           <motion.div key={kpi.key} variants={fadeUp}>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
         variants={staggerContainer}
         initial="hidden"
         animate="show"
-        className="mt-5 sm:mt-6 lg:mt-8 grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-[1.5fr_1fr] items-stretch"
+        className="mt-5 sm:mt-6 lg:mt-8 grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8 xl:grid-cols-[1.5fr_1fr] items-stretch"
       >
         {/* Status Mix */}
         <motion.div variants={fadeUp}>

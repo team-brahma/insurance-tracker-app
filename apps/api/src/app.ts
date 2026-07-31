@@ -26,6 +26,7 @@ const PUBLIC_PATHS = [
  */
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
+    bodyLimit: 50 * 1024 * 1024, // 50MB body limit for multi-file base64 uploads
     logger: {
       level: appConfig.isDevelopment ? 'debug' : 'info',
       transport: appConfig.isDevelopment
@@ -74,7 +75,9 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
     const path = request.url.split('?')[0] ?? '';
     const isPublic =
-      PUBLIC_PATHS.includes(path) || /^\/api\/v1\/policies\/[^/]+\/renewal-notice$/.test(path);
+      PUBLIC_PATHS.includes(path) ||
+      /^\/api\/v1\/policies\/[^/]+\/renewal-notice$/.test(path) ||
+      /^\/api\/v1\/policies\/[^/]+\/documents\/[^/]+\/file$/.test(path);
     if (path.startsWith('/api/v1') && !isPublic) {
       await authenticate(request, reply);
     }

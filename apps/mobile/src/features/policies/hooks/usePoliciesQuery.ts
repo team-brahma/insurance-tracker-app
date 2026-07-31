@@ -81,7 +81,9 @@ export function useDeletePolicyMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => policyService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: policyKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: policyKeys.history(id) });
       void queryClient.invalidateQueries({ queryKey: policyKeys.all });
       void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     },

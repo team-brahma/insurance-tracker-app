@@ -107,7 +107,8 @@ export function daysToExpiry(endDateStr: string, fromDate = new Date()): number 
   const cleanDate = endDateStr.slice(0, 10);
   const end = new Date(cleanDate + 'T00:00:00');
   if (isNaN(end.getTime())) return 0;
-  return Math.round((end.getTime() - fromDate.getTime()) / 86400000);
+  const startOfDayFrom = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+  return Math.round((end.getTime() - startOfDayFrom.getTime()) / 86400000);
 }
 
 export function urgencyBucket(days: number): 'overdue' | 'due7' | 'due30' | 'future' {

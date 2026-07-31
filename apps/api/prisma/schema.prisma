@@ -147,8 +147,25 @@ model Policy {
   insuranceProvider InsuranceProviderMaster? @relation(fields: [insuranceProviderId], references: [id])
   associateAgent    AssociateAgent?          @relation(fields: [associateAgentId], references: [id], onDelete: SetNull)
   statusHistories   PolicyStatusHistory[]
+  documents         PolicyDocument[]
 
   @@map("policies")
+}
+
+model PolicyDocument {
+  id        String   @id @default(uuid())
+  policyId  String   @map("policy_id")
+  year      Int      @map("year")
+  fileName  String   @map("file_name")
+  fileData  String   @map("file_data") @db.MediumText
+  fileSize  Int?     @map("file_size")
+  mimeType  String?  @map("mime_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@map("policy_documents")
 }
 
 model Settings {
