@@ -31,9 +31,9 @@ export default function Select({
   error,
 }: SelectProps) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 w-full min-w-0">
       {label && (
-        <label className="text-xs font-semibold text-ink-soft">
+        <label className="text-xs font-semibold text-ink-soft truncate">
           {label}
           {required && <span className="ml-1 text-red-edge">*</span>}
         </label>
@@ -41,7 +41,7 @@ export default function Select({
       <RadixSelect.Root value={value} onValueChange={onValueChange} disabled={disabled ?? false}>
         <RadixSelect.Trigger
           className={cn(
-            'flex h-11 w-full items-center justify-between gap-2 rounded-xl border bg-surface px-3 text-sm text-ink outline-none overflow-hidden',
+            'flex h-11 w-full items-center justify-between gap-2 rounded-xl border bg-surface px-3 text-sm text-ink outline-none overflow-hidden min-w-0',
             'transition-all hover:border-line-strong',
             'focus:border-slate focus:shadow-[0_0_0_3px_rgba(15,118,110,0.15)]',
             'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -50,7 +50,7 @@ export default function Select({
             className,
           )}
         >
-          <span className="truncate flex-1 text-left">
+          <span className="truncate flex-1 min-w-0 text-left">
             <RadixSelect.Value placeholder={placeholder} />
           </span>
           <RadixSelect.Icon className="shrink-0">

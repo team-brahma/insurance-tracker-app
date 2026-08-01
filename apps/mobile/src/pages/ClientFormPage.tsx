@@ -406,8 +406,8 @@ export default function ClientFormPage() {
 
               {watchIsOutsourced && (
                 <div className="pl-7 space-y-3 pt-1">
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1">
+                  <div className="flex items-end gap-2 w-full min-w-0">
+                    <div className="flex-1 min-w-0">
                       <Select
                         label="Select Associate Agent"
                         value={watchAssociateAgentId || ''}
