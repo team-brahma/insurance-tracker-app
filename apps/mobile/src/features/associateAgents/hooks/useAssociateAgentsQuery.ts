@@ -37,6 +37,10 @@ export function useCreateAssociateAgentMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: associateAgentKeys.all });
     },
+    meta: {
+      successMessage: (variables: CreateAssociateAgentDto) =>
+        `Associate agent "${variables.name}" created successfully.`,
+    },
   });
 }
 
@@ -48,6 +52,12 @@ export function useUpdateAssociateAgentMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: associateAgentKeys.all });
     },
+    meta: {
+      successMessage: (variables: { id: string; data: UpdateAssociateAgentDto }) =>
+        variables.data.name
+          ? `Associate agent "${variables.data.name}" updated successfully.`
+          : 'Associate agent updated successfully.',
+    },
   });
 }
 
@@ -58,6 +68,9 @@ export function useDeleteAssociateAgentMutation() {
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: associateAgentKeys.detail(id) });
       void queryClient.invalidateQueries({ queryKey: associateAgentKeys.all });
+    },
+    meta: {
+      successMessage: 'Associate agent deleted successfully.',
     },
   });
 }

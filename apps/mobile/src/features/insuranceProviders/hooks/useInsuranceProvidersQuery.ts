@@ -35,6 +35,10 @@ export function useCreateInsuranceProviderMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: insuranceProviderKeys.all });
     },
+    meta: {
+      successMessage: (variables: { name: string }) =>
+        `Insurance provider "${variables.name}" created successfully.`,
+    },
   });
 }
 
@@ -46,6 +50,12 @@ export function useUpdateInsuranceProviderMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: insuranceProviderKeys.all });
     },
+    meta: {
+      successMessage: (variables: { id: string; data: Partial<{ name: string }> }) =>
+        variables.data.name
+          ? `Insurance provider "${variables.data.name}" updated successfully.`
+          : 'Insurance provider updated successfully.',
+    },
   });
 }
 
@@ -55,6 +65,9 @@ export function useDeleteInsuranceProviderMutation() {
     mutationFn: (id: string) => insuranceProviderService.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: insuranceProviderKeys.all });
+    },
+    meta: {
+      successMessage: 'Insurance provider deleted successfully.',
     },
   });
 }

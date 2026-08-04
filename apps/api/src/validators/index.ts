@@ -9,7 +9,7 @@ export {
   updatePolicySchema,
   updatePolicyStatusSchema,
 } from './PolicyValidators.js';
-export { createUserSchema } from './UserValidators.js';
+export { createUserSchema, updateUserSchema } from './UserValidators.js';
 export { createClientSchema, updateClientSchema } from './ClientValidators.js';
 export { createPolicyTypeSchema, updatePolicyTypeSchema } from './PolicyTypeValidators.js';
 export {

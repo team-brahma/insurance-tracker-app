@@ -16,6 +16,7 @@ import {
   Check,
   LayoutGrid,
   List,
+  Tag,
 } from 'lucide-react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -26,6 +27,7 @@ import PageLoader from '@components/ui/PageLoader.js';
 import SurfaceCard from '@components/ui/SurfaceCard.js';
 import Dialog from '@components/ui/Dialog.js';
 import Button from '@components/ui/Button.js';
+import MonthPicker from '@components/ui/MonthPicker.js';
 import { useInfinitePoliciesQuery } from '@features/policies/hooks/usePoliciesQuery.js';
 import type { PolicyListParams } from '@features/policies/types/index.js';
 import { RENEWAL_STATUS_LABELS } from '@repo/constants';
@@ -248,12 +250,12 @@ function PolicyListRow({
   const daysColor = isRenewed
     ? 'text-cyan-600 dark:text-cyan-400'
     : policy.urgency === 'overdue'
-    ? 'text-red-fg'
-    : policy.urgency === 'due7'
-    ? 'text-amber-fg'
-    : policy.urgency === 'due30'
-    ? 'text-green-fg'
-    : 'text-ink-faint';
+      ? 'text-red-fg'
+      : policy.urgency === 'due7'
+        ? 'text-amber-fg'
+        : policy.urgency === 'due30'
+          ? 'text-green-fg'
+          : 'text-ink-faint';
 
   return (
     <div
@@ -302,12 +304,20 @@ function PolicyListRow({
             )}
           </div>
 
-          {/* Name + urgency label */}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-extrabold tracking-tight text-ink group-hover:text-slate transition-colors duration-150 leading-snug truncate">
-              {policy.insuredPersonName ?? policy.client.insuredName}
-            </p>
-            <p className={cn('text-xs font-bold mt-0.5', daysColor)}>
+          {/* Name + reference badge + urgency label */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 gap-y-1 flex-wrap">
+              <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-tight">
+                {policy.insuredPersonName ?? policy.client.insuredName}
+              </h3>
+              {(policy.referenceName || policy.client?.referenceName) && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-cyan-500/15 dark:from-emerald-500/20 dark:via-teal-500/20 dark:to-cyan-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30 dark:border-emerald-400/40 text-[11px] font-black shadow-2xs backdrop-blur-xs">
+                  <Tag size={10} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>({policy.referenceName ?? policy.client?.referenceName})</span>
+                </span>
+              )}
+            </div>
+            <p className={cn('text-xs font-bold mt-1', daysColor)}>
               {daysLabel(policy.daysToExpiry)}
             </p>
           </div>
@@ -505,21 +515,29 @@ function PolicyCard({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
-                  {policy.insuredPersonName ?? policy.client.insuredName}
-                </h3>
+                <div className="flex items-center gap-1.5 gap-y-1 flex-wrap">
+                  <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-tight">
+                    {policy.insuredPersonName ?? policy.client.insuredName}
+                  </h3>
+                  {(policy.referenceName || policy.client?.referenceName) && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-cyan-500/15 dark:from-emerald-500/20 dark:via-teal-500/20 dark:to-cyan-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30 dark:border-emerald-400/40 text-[11px] font-black shadow-2xs backdrop-blur-xs">
+                      <Tag size={10} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>({policy.referenceName ?? policy.client?.referenceName})</span>
+                    </span>
+                  )}
+                </div>
                 <p
                   className={cn(
-                    'mt-0.5 text-xs font-bold leading-normal flex items-center gap-1.5',
+                    'mt-1 text-xs font-bold leading-normal flex items-center gap-1.5',
                     isRenewed
                       ? 'text-cyan-600 dark:text-cyan-400 font-extrabold'
                       : policy.urgency === 'overdue'
-                      ? 'text-red-fg'
-                      : policy.urgency === 'due7'
-                      ? 'text-amber-fg'
-                      : policy.urgency === 'due30'
-                      ? 'text-green-fg'
-                      : 'text-ink-faint',
+                        ? 'text-red-fg'
+                        : policy.urgency === 'due7'
+                          ? 'text-amber-fg'
+                          : policy.urgency === 'due30'
+                            ? 'text-green-fg'
+                            : 'text-ink-faint',
                   )}
                 >
                   {daysLabel(policy.daysToExpiry)}
@@ -577,7 +595,7 @@ function PolicyCard({
                 dot={!isRenewed}
                 className={cn(
                   isRenewed &&
-                    'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 font-extrabold',
+                  'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 font-extrabold',
                 )}
               >
                 {RENEWAL_STATUS_LABELS[policy.renewalStatus] ?? policy.renewalStatus}
@@ -593,73 +611,73 @@ function PolicyCard({
               )}
             </div>
 
-          {policy.referenceNote && (
-            <div className="rounded-xl bg-paper/60 border border-line/45 px-3 py-2 text-xs text-ink-soft transition-colors duration-200 group-hover:bg-paper/85">
-              <span className="text-[9px] font-black tracking-wider text-ink-faint mr-1.5 uppercase">
-                REF:
-              </span>
-              <span className="font-semibold text-ink">
-                {policy.referenceNote.toLowerCase().startsWith('ref:')
-                  ? policy.referenceNote.slice(4).trim()
-                  : policy.referenceNote}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Footer row */}
-        <div className="flex items-center justify-between border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
-          <div className="flex items-center gap-1.5 text-ink-faint">
-            <Calendar size={12} className="shrink-0 text-ink-faint/70" />
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.15em]">
-              {`Ends ${formatDate(policy.endDate)}`}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {policy.client.mobileNumber && (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(`tel:${policy.client.mobileNumber}`);
-                  }}
-                  title="Call client"
-                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
-                >
-                  <Phone size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onWhatsApp();
-                  }}
-                  title="Send WhatsApp"
-                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-green-edge/30 bg-green-bg text-green-fg shadow-sm transition hover:bg-green-edge/20 active:scale-95 cursor-pointer"
-                >
-                  <MessageCircle size={13} />
-                </button>
-              </>
+            {policy.referenceNote && (
+              <div className="rounded-xl bg-paper/60 border border-line/45 px-3 py-2 text-xs text-ink-soft transition-colors duration-200 group-hover:bg-paper/85">
+                <span className="text-[9px] font-black tracking-wider text-ink-faint mr-1.5 uppercase">
+                  REF:
+                </span>
+                <span className="font-semibold text-ink">
+                  {policy.referenceNote.toLowerCase().startsWith('ref:')
+                    ? policy.referenceNote.slice(4).trim()
+                    : policy.referenceNote}
+                </span>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              title="Edit policy"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
-            >
-              <Pencil size={12} />
-            </button>
-            <div className="flex h-5 w-5 items-center justify-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-slate">
-              <ChevronRight size={14} />
+          </div>
+
+          {/* Footer row */}
+          <div className="flex items-center justify-between border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
+            <div className="flex items-center gap-1.5 text-ink-faint">
+              <Calendar size={12} className="shrink-0 text-ink-faint/70" />
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.15em]">
+                {`Ends ${formatDate(policy.endDate)}`}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {policy.client.mobileNumber && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(`tel:${policy.client.mobileNumber}`);
+                    }}
+                    title="Call client"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
+                  >
+                    <Phone size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onWhatsApp();
+                    }}
+                    title="Send WhatsApp"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-green-edge/30 bg-green-bg text-green-fg shadow-sm transition hover:bg-green-edge/20 active:scale-95 cursor-pointer"
+                  >
+                    <MessageCircle size={13} />
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+                title="Edit policy"
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
+              >
+                <Pencil size={12} />
+              </button>
+              <div className="flex h-5 w-5 items-center justify-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-slate">
+                <ChevronRight size={14} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </SurfaceCard>
   );
@@ -679,8 +697,10 @@ export default function PolicyListPage() {
   const [activeUrgency, setActiveUrgency] = useState<UrgencyBucket | null>(null);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [filterMonth, setFilterMonth] = useState<string | null>(null);
   const [tempFilterTypes, setTempFilterTypes] = useState<string[]>([]);
   const [tempFilterStatuses, setTempFilterStatuses] = useState<string[]>([]);
+  const [tempFilterMonth, setTempFilterMonth] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   const handleViewModeChange = (m: ViewMode) => {
@@ -690,6 +710,18 @@ export default function PolicyListPage() {
     } catch {
       // ignore
     }
+  };
+
+  const handleMonthChange = (month: string | null) => {
+    setFilterMonth(month);
+    const queryParams = new URLSearchParams(location.search);
+    if (month) {
+      queryParams.set('month', month);
+    } else {
+      queryParams.delete('month');
+    }
+    const searchStr = queryParams.toString();
+    history.replace(searchStr ? `/policies?${searchStr}` : '/policies');
   };
 
   useEffect(() => {
@@ -707,6 +739,13 @@ export default function PolicyListPage() {
     } else {
       setFilterStatuses([]);
     }
+
+    const month = queryParams.get('month');
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      setFilterMonth(month);
+    } else {
+      setFilterMonth(null);
+    }
   }, [location.search]);
 
   const params: PolicyListParams = {};
@@ -714,6 +753,7 @@ export default function PolicyListPage() {
   if (activeUrgency) params.urgency = activeUrgency;
   if (filterStatuses.length > 0) params.renewalStatus = filterStatuses.join(',');
   if (filterTypes.length > 0) params.policyType = filterTypes.join(',');
+  if (filterMonth) params.month = filterMonth;
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useInfinitePoliciesQuery(params);
@@ -769,7 +809,8 @@ export default function PolicyListPage() {
       });
   }, [allPolicies]);
 
-  const activeFilterCount = filterTypes.length + filterStatuses.length;
+  const activeFilterCount =
+    filterTypes.length + filterStatuses.length + (filterMonth ? 1 : 0);
   const totalCount = firstPageMeta?.urgencyCounts?.all ?? 0;
 
   if (isLoading) return <PageLoader variant="list" />;
@@ -839,12 +880,15 @@ export default function PolicyListPage() {
                 if (activeFilterCount > 0) {
                   setFilterTypes([]);
                   setFilterStatuses([]);
+                  setFilterMonth(null);
                   setTempFilterTypes([]);
                   setTempFilterStatuses([]);
+                  setTempFilterMonth(null);
                   history.replace('/policies');
                 } else {
                   setTempFilterTypes(filterTypes);
                   setTempFilterStatuses(filterStatuses);
+                  setTempFilterMonth(filterMonth);
                   setShowFilters(true);
                 }
               }}
@@ -862,6 +906,14 @@ export default function PolicyListPage() {
                 <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-surface bg-red-edge" />
               )}
             </button>
+
+            {/* Month Picker */}
+            <MonthPicker
+              value={filterMonth}
+              onChange={handleMonthChange}
+              placeholder="Month"
+              align="end"
+            />
           </div>
 
           {/* ── Row 2: Count badge + filter pill + view toggle (right-aligned) ── */}
@@ -875,8 +927,10 @@ export default function PolicyListPage() {
                   onClick={() => {
                     setFilterTypes([]);
                     setFilterStatuses([]);
+                    setFilterMonth(null);
                     setTempFilterTypes([]);
                     setTempFilterStatuses([]);
+                    setTempFilterMonth(null);
                     history.replace('/policies');
                   }}
                   className="inline-flex items-center gap-1.5 rounded-full border border-slate/30 bg-slate/15 px-2.5 py-1 text-xs font-bold text-slate hover:bg-slate/25 dark:bg-slate/25 dark:hover:bg-slate/40 transition cursor-pointer"
@@ -1084,6 +1138,27 @@ export default function PolicyListPage() {
             }}
           />
 
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-faint">Expiry month</p>
+              {tempFilterMonth && (
+                <button
+                  type="button"
+                  onClick={() => { setTempFilterMonth(null); }}
+                  className="text-[10px] text-slate font-bold hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <MonthPicker
+              value={tempFilterMonth}
+              onChange={setTempFilterMonth}
+              placeholder="All Months"
+              className="w-full"
+            />
+          </div>
+
           <div className="flex gap-3 pt-1">
             <Button
               variant="outline"
@@ -1092,10 +1167,11 @@ export default function PolicyListPage() {
               onClick={() => {
                 setTempFilterTypes([]);
                 setTempFilterStatuses([]);
+                setTempFilterMonth(null);
                 setFilterTypes([]);
                 setFilterStatuses([]);
+                handleMonthChange(null);
                 setShowFilters(false);
-                history.replace('/policies');
               }}
             >
               Clear all
@@ -1107,6 +1183,7 @@ export default function PolicyListPage() {
               onClick={() => {
                 setFilterTypes(tempFilterTypes);
                 setFilterStatuses(tempFilterStatuses);
+                handleMonthChange(tempFilterMonth);
                 setShowFilters(false);
               }}
             >

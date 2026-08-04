@@ -39,6 +39,7 @@ export const clientRepository = {
         agentId,
         OR: [
           { insuredName: { contains: search } },
+          { referenceName: { contains: search } },
           { mobileNumber: { contains: search } },
           { associateAgent: { name: { contains: search } } },
         ],
@@ -106,6 +107,7 @@ export const clientRepository = {
     agentId: string,
     data: {
       insuredName: string;
+      referenceName?: string | null;
       mobileNumber: string;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
@@ -121,6 +123,7 @@ export const clientRepository = {
     agentId: string,
     data: {
       insuredName: string;
+      referenceName?: string | null;
       mobileNumber: string;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
@@ -135,6 +138,7 @@ export const clientRepository = {
       data: {
         agentId,
         insuredName: data.insuredName,
+        referenceName: data.referenceName || null,
         mobileNumber: data.mobileNumber,
         isOutsourced: data.isOutsourced ?? false,
         associateAgentId: data.associateAgentId || null,
@@ -150,6 +154,7 @@ export const clientRepository = {
     id: string,
     data: {
       insuredName?: string;
+      referenceName?: string | null;
       mobileNumber?: string;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
@@ -168,6 +173,7 @@ export const clientRepository = {
 
     const updateData: Record<string, unknown> = {};
     if (data.insuredName !== undefined) updateData.insuredName = data.insuredName;
+    if (data.referenceName !== undefined) updateData.referenceName = data.referenceName;
     if (data.mobileNumber !== undefined) updateData.mobileNumber = data.mobileNumber;
     if (data.isOutsourced !== undefined) updateData.isOutsourced = data.isOutsourced;
     if (data.associateAgentId !== undefined) updateData.associateAgentId = data.associateAgentId;

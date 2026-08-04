@@ -14,6 +14,8 @@ import {
   Lock,
   User,
   Users,
+  Pencil,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AppShellPage from '@components/layout/AppShellPage.js';
@@ -24,10 +26,12 @@ import SurfaceCard from '@components/ui/SurfaceCard.js';
 import Dialog from '@components/ui/Dialog.js';
 import Button from '@components/ui/Button.js';
 import Input from '@components/ui/Input.js';
+import Checkbox from '@components/ui/Checkbox.js';
 import { useAuthStore } from '@features/auth/store/AuthStore.js';
 import {
   useInfiniteUsersQuery,
   useCreateUserMutation,
+  useUpdateUserMutation,
   useDeleteUserMutation,
 } from '@features/users/index.js';
 import { formatDate, initials } from '@repo/utils';
@@ -39,13 +43,24 @@ const createUserSchema = z.object({
   email: z.string().regex(VALIDATION.EMAIL, VALIDATION_ERRORS.EMAIL),
   password: z.string().min(VALIDATION.PASSWORD_MIN_LENGTH, VALIDATION_ERRORS.PASSWORD_MIN),
   role: z.enum(['ADMIN', 'AGENT']),
+  isOutsourcedEnabled: z.boolean().optional(),
 });
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
+const editUserSchema = z.object({
+  name: z.string().min(1, 'Name is required').regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+  email: z.string().regex(VALIDATION.EMAIL, VALIDATION_ERRORS.EMAIL),
+  role: z.enum(['ADMIN', 'AGENT']),
+  isOutsourcedEnabled: z.boolean().optional(),
+});
+
+type EditUserFormValues = z.infer<typeof editUserSchema>;
+
 export default function UserManagementPage() {
   const currentUser = useAuthStore((s) => s.user);
   const createUserMutation = useCreateUserMutation();
+  const updateUserMutation = useUpdateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
 
   const {
@@ -87,6 +102,8 @@ export default function UserManagementPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<RepoUser | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
@@ -99,18 +116,45 @@ export default function UserManagementPage() {
     formState: { errors },
   } = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
-    defaultValues: { name: '', email: '', password: '', role: 'AGENT' },
+    defaultValues: { name: '', email: '', password: '', role: 'AGENT', isOutsourcedEnabled: false },
+  });
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    watch: watchEdit,
+    setValue: setValueEdit,
+    formState: { errors: errorsEdit },
+  } = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: { name: '', email: '', role: 'AGENT', isOutsourcedEnabled: false },
   });
 
   const watchedRole = watch('role');
+  const watchedIsOutsourcedEnabled = watch('isOutsourcedEnabled');
+
+  const watchedEditRole = watchEdit('role');
+  const watchedEditIsOutsourcedEnabled = watchEdit('isOutsourcedEnabled');
 
   const filteredUsers = useMemo(() => {
     return data?.pages.flatMap((page) => page.data) ?? [];
   }, [data]);
 
   const handleOpenCreate = () => {
-    reset({ name: '', email: '', password: '', role: 'AGENT' });
+    reset({ name: '', email: '', password: '', role: 'AGENT', isOutsourcedEnabled: false });
     setIsCreateOpen(true);
+  };
+
+  const handleOpenEdit = (user: RepoUser) => {
+    setEditingUser(user);
+    resetEdit({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isOutsourcedEnabled: user.isOutsourcedEnabled ?? false,
+    });
+    setIsEditOpen(true);
   };
 
   const handleOpenDelete = (id: string) => {
@@ -125,10 +169,23 @@ export default function UserManagementPage() {
   const onSubmit = async (values: CreateUserFormValues) => {
     try {
       await createUserMutation.mutateAsync(values);
-      toast.success(`User ${values.name} created successfully`);
       setIsCreateOpen(false);
     } catch {
       // Error handled by query mutation globally
+    }
+  };
+
+  const onSubmitEdit = async (values: EditUserFormValues) => {
+    if (!editingUser) return;
+    try {
+      await updateUserMutation.mutateAsync({
+        id: editingUser.id,
+        data: values,
+      });
+      setIsEditOpen(false);
+      setEditingUser(null);
+    } catch {
+      // Error handled globally
     }
   };
 
@@ -136,7 +193,6 @@ export default function UserManagementPage() {
     if (!deleteTargetId) return;
     try {
       await deleteUserMutation.mutateAsync(deleteTargetId);
-      toast.success('User deleted successfully');
       setIsDeleteOpen(false);
       setDeleteTargetId(null);
     } catch {
@@ -217,6 +273,12 @@ export default function UserManagementPage() {
                         >
                           {user.role}
                         </Badge>
+                        {user.isOutsourcedEnabled && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 text-[9px] font-bold text-purple-700 dark:text-purple-300">
+                            <UserCheck size={10} className="text-purple-500" />
+                            Outsourced Enabled
+                          </span>
+                        )}
                         {isMe && (
                           <span className="rounded-full bg-slate/10 px-2 py-0.5 text-[9px] font-bold text-slate dark:bg-slate/25">
                             You
@@ -239,31 +301,40 @@ export default function UserManagementPage() {
                       <Calendar size={13} className="shrink-0" />
                       <span>Joined {formatDate(user.createdAt)}</span>
                     </div>
-                    {!isMe && (
+                    <div className="flex items-center gap-1">
                       <button
-                      onClick={() => {
-                        handleOpenDelete(user.id);
-                      }}
-                      className="group flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint hover:bg-red-bg hover:text-red-fg border border-transparent hover:border-red-edge/10 transition-all cursor-pointer"
-                      title={`Delete user ${user.name}`}
-                    >
-                      <Trash2 size={14} className="transition-transform group-hover:scale-105" />
-                    </button>
-                  )}
-                </div>
-              </SurfaceCard>
-            );
-          })}
+                        onClick={() => handleOpenEdit(user)}
+                        className="group flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint hover:bg-slate/10 hover:text-slate border border-transparent hover:border-slate/15 transition-all cursor-pointer"
+                        title={`Edit user ${user.name}`}
+                      >
+                        <Pencil size={14} className="transition-transform group-hover:scale-105" />
+                      </button>
+                      {!isMe && (
+                        <button
+                          onClick={() => {
+                            handleOpenDelete(user.id);
+                          }}
+                          className="group flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint hover:bg-red-bg hover:text-red-fg border border-transparent hover:border-red-edge/10 transition-all cursor-pointer"
+                          title={`Delete user ${user.name}`}
+                        >
+                          <Trash2 size={14} className="transition-transform group-hover:scale-105" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </SurfaceCard>
+              );
+            })}
+          </div>
+          <div ref={sentinelRef} className="py-4 text-center">
+            {isFetchingNextPage && (
+              <div className="flex items-center justify-center gap-2 text-xs font-semibold text-ink-faint">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate border-t-transparent" />
+                Loading more users...
+              </div>
+            )}
+          </div>
         </div>
-        <div ref={sentinelRef} className="py-4 text-center">
-          {isFetchingNextPage && (
-            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-ink-faint">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate border-t-transparent" />
-              Loading more users...
-            </div>
-          )}
-        </div>
-      </div>
       )}
 
       {/* ── CREATE USER MODAL ── */}
@@ -349,6 +420,23 @@ export default function UserManagementPage() {
             )}
           </div>
 
+          <div className="pt-2 border-t border-line/60">
+            <Checkbox
+              id="create_is_outsourced_enabled"
+              checked={!!watchedIsOutsourcedEnabled}
+              onCheckedChange={(checked) => setValue('isOutsourcedEnabled', checked)}
+              label={
+                <span className="flex items-center gap-1.5 font-semibold text-ink text-xs">
+                  <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
+                  Enable Outsourced Facility Capability
+                </span>
+              }
+            />
+            <p className="mt-1 pl-7 text-[11px] text-ink-faint">
+              Allows this agent to create and manage outsourced clients, policies, and associate agents.
+            </p>
+          </div>
+
           <div className="pt-2 flex justify-end gap-3">
             <Button
               variant="outline"
@@ -361,6 +449,110 @@ export default function UserManagementPage() {
             </Button>
             <Button variant="primary" type="submit" loading={createUserMutation.isPending}>
               Create User
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* ── EDIT USER MODAL ── */}
+      <Dialog
+        open={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditingUser(null);
+        }}
+        title="Edit User Capabilities & Info"
+        description={`Update role or outsourced facility permissions for ${editingUser?.name ?? 'user'}.`}
+      >
+        <form
+          onSubmit={(e) => {
+            void handleSubmitEdit(onSubmitEdit)(e);
+          }}
+          className="mt-2 space-y-4 text-left"
+          noValidate
+        >
+          <Input
+            label="Name"
+            type="text"
+            required
+            leftElement={<User size={15} />}
+            error={errorsEdit.name?.message}
+            {...registerEdit('name')}
+          />
+
+          <Input
+            label="Email Address"
+            type="email"
+            required
+            leftElement={<Mail size={15} />}
+            error={errorsEdit.email?.message}
+            {...registerEdit('email')}
+          />
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-ink-soft">System Role</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setValueEdit('role', 'AGENT');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${
+                  watchedEditRole === 'AGENT'
+                    ? 'border-slate bg-slate/5 text-slate font-bold'
+                    : 'border-line hover:border-line-strong text-ink-soft'
+                }`}
+              >
+                <User size={18} className="mb-1" />
+                <span className="text-xs">Agent</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setValueEdit('role', 'ADMIN');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${
+                  watchedEditRole === 'ADMIN'
+                    ? 'border-slate bg-slate/5 text-slate font-bold'
+                    : 'border-line hover:border-line-strong text-ink-soft'
+                }`}
+              >
+                <Shield size={18} className="mb-1" />
+                <span className="text-xs">Administrator</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-line/60">
+            <Checkbox
+              id="edit_is_outsourced_enabled"
+              checked={!!watchedEditIsOutsourcedEnabled}
+              onCheckedChange={(checked) => setValueEdit('isOutsourcedEnabled', checked)}
+              label={
+                <span className="flex items-center gap-1.5 font-semibold text-ink text-xs">
+                  <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
+                  Enable Outsourced Facility Capability
+                </span>
+              }
+            />
+            <p className="mt-1 pl-7 text-[11px] text-ink-faint">
+              Allows this agent to create and manage outsourced clients, policies, and associate agents.
+            </p>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                setIsEditOpen(false);
+                setEditingUser(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" loading={updateUserMutation.isPending}>
+              Save Changes
             </Button>
           </div>
         </form>

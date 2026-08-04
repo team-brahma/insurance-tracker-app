@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { policyService } from '@services/PolicyService.js';
 import { assertAuthenticated } from '@middlewares/Auth.js';
+import { getDb } from '@database/index.js';
 import { ValidationError } from '@errors/AppError.js';
 import { HTTP_STATUS } from '@repo/constants';
 import { normaliseMobile } from '@repo/utils';
@@ -31,6 +32,7 @@ export const policyController = {
     const renewalStatusFilter = query.renewal_status ?? query.renewalStatus;
     if (renewalStatusFilter) params.renewalStatus = renewalStatusFilter.split(',');
     if (query.urgency) params.urgency = query.urgency;
+    if (query.month) params.month = query.month;
     const isOutsourcedRaw = query.is_outsourced ?? query.isOutsourced;
     if (isOutsourcedRaw !== undefined) {
       params.isOutsourced = isOutsourcedRaw === 'true' || isOutsourcedRaw === '1';
@@ -87,8 +89,20 @@ export const policyController = {
     if (body.claimDate != null) data.claimDate = body.claimDate;
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;
     if (body.enquiryId != null) data.enquiryId = body.enquiryId;
-    if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
-    if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
+    const db = getDb();
+    const user = await db.user.findUnique({
+      where: { id: agentId },
+      select: { isOutsourcedEnabled: true },
+    });
+
+    if (user?.isOutsourcedEnabled) {
+      if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
+      if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
+    } else {
+      data.isOutsourced = false;
+      data.associateAgentId = null;
+    }
+
     const policy = (await policyService.create(
       agentId,
       data as Parameters<typeof policyService.create>[1],
@@ -107,6 +121,12 @@ export const policyController = {
         parsed.error.issues.map((e: { message: string }) => e.message).join('; '),
       );
     const body = parsed.data;
+    const db = getDb();
+    const user = await db.user.findUnique({
+      where: { id: agentId },
+      select: { isOutsourcedEnabled: true },
+    });
+
     const data: Record<string, unknown> = {};
     if (body.clientId != null) data.clientId = body.clientId;
     if (body.insuredName != null) data.insuredName = body.insuredName;
@@ -127,8 +147,13 @@ export const policyController = {
     if (body.isClaimed != null) data.isClaimed = body.isClaimed;
     if (body.claimDate != null) data.claimDate = body.claimDate;
     if (body.claimAmount != null) data.claimAmount = body.claimAmount;
-    if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
-    if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
+    if (user?.isOutsourcedEnabled) {
+      if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
+      if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
+    } else {
+      data.isOutsourced = false;
+      data.associateAgentId = null;
+    }
     const policy = (await policyService.update(agentId, id, data)) as Record<string, unknown>;
     applyRenewalNoticeUrl(policy);
     sanitizePolicy(policy);

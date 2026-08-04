@@ -7,6 +7,7 @@ export const clientService = {
     agentId: string,
     data: {
       insuredName: string;
+      referenceName?: string | null;
       mobileNumber: string;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
@@ -14,11 +15,13 @@ export const clientService = {
   ) {
     const createPayload: {
       insuredName: string;
+      referenceName?: string | null;
       mobileNumber: string;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
     } = {
       insuredName: formatSmartClientName(data.insuredName),
+      referenceName: data.referenceName ? formatSmartClientName(data.referenceName) : null,
       mobileNumber: data.mobileNumber,
     };
     if (data.isOutsourced !== undefined) createPayload.isOutsourced = data.isOutsourced;
@@ -60,6 +63,7 @@ export const clientService = {
     id: string,
     data: {
       insuredName?: string;
+      referenceName?: string | null;
       mobileNumber?: string;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
@@ -69,6 +73,9 @@ export const clientService = {
     const updateData: typeof data = { ...data };
     if (updateData.insuredName) {
       updateData.insuredName = formatSmartClientName(updateData.insuredName);
+    }
+    if (updateData.referenceName !== undefined) {
+      updateData.referenceName = updateData.referenceName ? formatSmartClientName(updateData.referenceName) : null;
     }
     return clientRepository.update(agentId, id, updateData);
   },

@@ -1,6 +1,7 @@
 import { policyTypeRepository } from '@repositories/PolicyTypeRepository.js';
 import { NotFoundError, ConflictError, ValidationError } from '@errors/AppError.js';
 import { getDb } from '@database/index.js';
+import { formatSmartPolicyTypeName } from '@repo/utils';
 
 export const policyTypeService = {
   async list(search?: string, page?: number, limit?: number) {
@@ -14,24 +15,28 @@ export const policyTypeService = {
   },
 
   async create(data: { name: string }) {
-    const existing = await policyTypeRepository.findByName(data.name);
+    const formattedName = formatSmartPolicyTypeName(data.name);
+    const existing = await policyTypeRepository.findByName(formattedName);
     if (existing) {
-      throw new ConflictError(`Policy type "${data.name}" already exists`);
+      throw new ConflictError(`Policy type "${formattedName}" already exists`);
     }
-    return policyTypeRepository.create(data);
+    return policyTypeRepository.create({ name: formattedName });
   },
 
   async update(id: string, data: Partial<{ name: string | undefined }>) {
     await this.getById(id);
 
+    const updateData: { name?: string } = {};
     if (data.name) {
-      const existing = await policyTypeRepository.findByName(data.name);
+      const formattedName = formatSmartPolicyTypeName(data.name);
+      const existing = await policyTypeRepository.findByName(formattedName);
       if (existing && existing.id !== id) {
-        throw new ConflictError(`Policy type "${data.name}" already exists`);
+        throw new ConflictError(`Policy type "${formattedName}" already exists`);
       }
+      updateData.name = formattedName;
     }
 
-    return policyTypeRepository.update(id, data);
+    return policyTypeRepository.update(id, updateData);
   },
 
   async delete(id: string) {

@@ -7,6 +7,9 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/', { preHandler: [authenticate] }, (req, reply) =>
     userController.create(req, reply),
   );
+  fastify.patch('/:id', { preHandler: [authenticate] }, (req, reply) =>
+    userController.update(req, reply),
+  );
   fastify.delete('/:id', { preHandler: [authenticate] }, (req, reply) =>
     userController.delete(req, reply),
   );

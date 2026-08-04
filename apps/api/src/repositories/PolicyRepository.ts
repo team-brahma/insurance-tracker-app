@@ -7,6 +7,7 @@ export interface PolicyFilters {
   policyType?: string | string[]; // This holds policyTypeId(s)
   renewalStatus?: RenewalStatus | RenewalStatus[];
   urgency?: 'overdue' | 'due7' | 'due30' | 'future';
+  month?: string; // Format: YYYY-MM
   isOutsourced?: boolean;
   associateAgentId?: string;
   page?: number;
@@ -28,6 +29,7 @@ export const policyRepository = {
         OR: [
           { client: { insuredName: { contains: filters.search } } },
           { insuredPersonName: { contains: filters.search } },
+          { referenceName: { contains: filters.search } },
           { vehicleNumber: { contains: filters.search } },
           { policyNumber: { contains: filters.search } },
           { associateAgent: { name: { contains: filters.search } } },
@@ -40,6 +42,19 @@ export const policyRepository = {
         baseAND.push({ policyTypeId: { in: filters.policyType } });
       } else {
         baseAND.push({ policyTypeId: filters.policyType });
+      }
+    }
+
+    if (filters.month) {
+      const parts = filters.month.split('-');
+      if (parts.length === 2) {
+        const year = parseInt(parts[0] ?? '', 10);
+        const monthIndex = parseInt(parts[1] ?? '', 10) - 1;
+        if (!isNaN(year) && !isNaN(monthIndex) && monthIndex >= 0 && monthIndex <= 11) {
+          const startOfMonth = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
+          const endOfMonth = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0));
+          baseAND.push({ endDate: { gte: startOfMonth, lt: endOfMonth } });
+        }
       }
     }
 

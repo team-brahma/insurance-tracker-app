@@ -25,6 +25,7 @@ import {
   X,
   UserCheck,
   Users,
+  Tag,
 } from 'lucide-react';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -261,9 +262,6 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
           onSuccess: () => {
             toast.success('Renewal notice PDF uploaded successfully');
           },
-          onError: (err) => {
-            toast.error(err instanceof Error ? err.message : 'Failed to upload PDF');
-          },
         },
       );
     };
@@ -279,9 +277,6 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
           if (pdfInputRef.current) {
             pdfInputRef.current.value = '';
           }
-        },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : 'Failed to remove PDF');
         },
       },
     );
@@ -534,9 +529,17 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                   </motion.div>
 
                   <div className="text-left min-w-0">
-                    <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-ink leading-tight tracking-tight break-words">
-                      {policy.insuredPersonName || policy.client.insuredName}
-                    </h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-ink leading-tight tracking-tight break-words">
+                        {policy.insuredPersonName || policy.client.insuredName}
+                      </h2>
+                      {(policy.referenceName || policy.client?.referenceName) && (
+                        <span className="mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-teal-500/10 dark:bg-teal-400/15 text-teal-800 dark:text-teal-200 border border-teal-500/30 dark:border-teal-400/40 text-xs font-black shadow-2xs backdrop-blur-xs">
+                          <Tag size={11} className="text-teal-600 dark:text-teal-400 shrink-0" />
+                          <span>({policy.referenceName ?? policy.client?.referenceName})</span>
+                        </span>
+                      )}
+                    </div>
 
                     {policy.insuredPersonName && (
                       <p className="text-xs text-ink-faint font-semibold mt-1">
@@ -677,6 +680,17 @@ function PolicyDetailContent({ policy, id }: { policy: PolicyWithClient; id: str
                       <DataRow label="Insured Person" value={policy.client.insuredName} />
                       <DataRow label="Relation" value={<Badge tone="neutral">Self</Badge>} />
                     </>
+                  )}
+                  {(policy.referenceName || policy.client?.referenceName) && (
+                    <DataRow
+                      label="Reference Name"
+                      value={
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-teal-500/10 dark:bg-teal-400/15 text-teal-800 dark:text-teal-200 border border-teal-500/30 dark:border-teal-400/40 text-xs font-black shadow-2xs">
+                          <Tag size={11} className="text-teal-600 dark:text-teal-400 shrink-0" />
+                          <span>{policy.referenceName ?? policy.client?.referenceName}</span>
+                        </span>
+                      }
+                    />
                   )}
                   {policy.referenceNote && (
                     <DataRow

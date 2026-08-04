@@ -7,7 +7,11 @@ export function useInfinitePolicyDocumentsQuery(policyId: string, search?: strin
   return useInfiniteQuery({
     queryKey: [POLICY_DOCUMENTS_QUERY_KEY, policyId, { search, limit }],
     queryFn: async ({ pageParam = 1 }) => {
-      const res = await policyService.getDocuments(policyId, { search, page: pageParam, limit });
+      const res = await policyService.getDocuments(policyId, {
+        ...(search ? { search } : {}),
+        page: pageParam,
+        limit,
+      });
       return res;
     },
     getNextPageParam: (lastPage) => {

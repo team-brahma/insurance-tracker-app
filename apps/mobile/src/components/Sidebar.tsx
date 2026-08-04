@@ -49,7 +49,9 @@ export default function Sidebar({
           { label: 'Enquiries', path: '/enquiries', icon: HelpCircle },
           { label: 'Policy Types', path: '/policy-types', icon: Tag },
           { label: 'Providers', path: '/insurance-providers', icon: Building2 },
-          { label: 'Associate Agents', path: '/associate-agents', icon: UserCheck },
+          ...(user?.isOutsourcedEnabled
+            ? [{ label: 'Associate Agents', path: '/associate-agents', icon: UserCheck }]
+            : []),
           { label: 'Bulk Import', path: '/bulk-import', icon: Upload },
           { label: 'Settings', path: '/settings', icon: Settings },
         ];

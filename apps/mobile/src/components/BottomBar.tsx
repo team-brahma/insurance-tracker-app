@@ -271,14 +271,16 @@ export default function BottomBar({ className = '' }: BottomBarProps) {
                   }}
                   active={currentPath.startsWith('/notifications')}
                 />
-                <MoreItem
-                  icon={UserCheck}
-                  label="Associate Agents"
-                  onClick={() => {
-                    navigate('/associate-agents');
-                  }}
-                  active={currentPath.startsWith('/associate-agents')}
-                />
+                {user?.isOutsourcedEnabled && (
+                  <MoreItem
+                    icon={UserCheck}
+                    label="Associate Agents"
+                    onClick={() => {
+                      navigate('/associate-agents');
+                    }}
+                    active={currentPath.startsWith('/associate-agents')}
+                  />
+                )}
                 <MoreItem
                   icon={Upload}
                   label="Bulk Import"

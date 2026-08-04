@@ -12,9 +12,29 @@ export const userRepository = {
     return db.user.findUnique({ where: { id } });
   },
 
-  async create(data: { email: string; password: string; name: string; role?: UserRole }) {
+  async create(data: {
+    email: string;
+    password: string;
+    name: string;
+    role?: UserRole;
+    isOutsourcedEnabled?: boolean;
+  }) {
     const db = getDb();
     return db.user.create({ data });
+  },
+
+  async update(
+    id: string,
+    data: {
+      email?: string;
+      password?: string;
+      name?: string;
+      role?: UserRole;
+      isOutsourcedEnabled?: boolean;
+    },
+  ) {
+    const db = getDb();
+    return db.user.update({ where: { id }, data });
   },
 
   async updateFcmToken(userId: string, fcmToken: string | null) {

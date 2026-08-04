@@ -47,6 +47,7 @@ import Checkbox from '@components/ui/Checkbox.js';
 import Radio from '@components/ui/Radio.js';
 import Dialog from '@components/ui/Dialog.js';
 import { cn } from '@utils/Cn.js';
+import { useAuthStore } from '@features/auth/store/AuthStore.js';
 import { UserCheck, Plus } from 'lucide-react';
 
 const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociate: boolean) => {
@@ -69,9 +70,10 @@ const getPolicySchema = (policyTypes: { id: string; name: string }[], isAssociat
           .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME)
         : z.string().optional(),
       mobileNumber: mobileValidation,
+      referenceName: z.string().optional(),
       referenceNote: z.string(),
       policyType: z.string().min(1, 'Policy type is required'),
-      insuranceProviderId: z.string().min(1, 'Insurance provider is required'),
+      insuranceProviderId: z.string().optional(),
       vehicleNumber: z.string(),
       policyNumber: z
         .string()
@@ -150,6 +152,7 @@ function statusTone(
 }
 
 export default function PolicyFormPage() {
+  const currentUser = useAuthStore((s) => s.user);
   const { id } = useParams<{ id?: string }>();
   const history = useHistory();
   const location = useLocation<{ from?: string } | null>();
@@ -274,6 +277,7 @@ export default function PolicyFormPage() {
     defaultValues: {
       insuredName: '',
       mobileNumber: '',
+      referenceName: '',
       insuredPersonName: '',
       referenceNote: '',
       policyType: '',
@@ -431,6 +435,7 @@ export default function PolicyFormPage() {
         mobileNumber: existing.client.mobileNumber
           ? existing.client.mobileNumber.replace('+91', '')
           : '',
+        referenceName: existing.referenceName ?? existing.client?.referenceName ?? '',
         insuredPersonName: existing.insuredPersonName ?? '',
         referenceNote: existing.referenceNote ?? '',
         policyType: existing.policyType.id,
@@ -456,6 +461,7 @@ export default function PolicyFormPage() {
       reset({
         insuredName: clientName,
         mobileNumber: clientMobile.replace('+91', ''),
+        referenceName: foundClient?.referenceName ?? '',
         insuredPersonName: '',
         referenceNote: enquiry.referredBy ? `Referred by: ${enquiry.referredBy}` : '',
         policyType: enquiry.policyTypeId,
@@ -478,6 +484,7 @@ export default function PolicyFormPage() {
       reset({
         insuredName: '',
         mobileNumber: '',
+        referenceName: '',
         insuredPersonName: '',
         referenceNote: '',
         policyType: '',
@@ -609,6 +616,18 @@ export default function PolicyFormPage() {
 
 
 
+  const handleOpenAddAgentModal = () => {
+    setNewAgentName('');
+    setNewAgentMobile('');
+    setIsAddAgentOpen(true);
+  };
+
+  const handleCloseAddAgentModal = () => {
+    setIsAddAgentOpen(false);
+    setNewAgentName('');
+    setNewAgentMobile('');
+  };
+
   const handleQuickAddAgent = async () => {
     if (!newAgentName.trim() || !newAgentMobile.trim()) {
       toast.error('Agent Name and Mobile are required.');
@@ -619,14 +638,10 @@ export default function PolicyFormPage() {
         name: newAgentName.trim(),
         mobileNumber: newAgentMobile.trim(),
       });
-      toast.success(`Associate agent "${newAgentName}" created.`);
       setValue('associateAgentId', res.data.id);
-      setIsAddAgentOpen(false);
-      setNewAgentName('');
-      setNewAgentMobile('');
-    } catch (err) {
-      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      toast.error(axiosError.response?.data?.message ?? axiosError.message ?? 'Failed to add agent.');
+      handleCloseAddAgentModal();
+    } catch {
+      // Global error handler in App.tsx automatically displays single error toast
     }
   };
 
@@ -641,6 +656,7 @@ export default function PolicyFormPage() {
     };
     if (selectedClientId) payload.clientId = selectedClientId;
     if (mn) payload.mobileNumber = `+91${mn.replace(/\D/g, '').slice(-10)}`;
+    if (form.referenceName?.trim()) payload.referenceName = form.referenceName.trim();
     if (isAssociate && form.insuredPersonName?.trim()) {
       payload.insuredPersonName = form.insuredPersonName.trim();
     } else {
@@ -965,91 +981,91 @@ export default function PolicyFormPage() {
                   {/* Link Client + Client Information */}
                   <div className="space-y-4">
                     {/* Outsource / Associate Agent Card — placed above Link to Existing Client */}
-                    <div className="space-y-3 bg-surface border border-line p-5 sm:p-6 rounded-2xl shadow-sm text-left">
-                      <div className="flex items-center gap-2.5 pb-3 border-b border-line">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950/45 text-purple-700 dark:text-purple-300 border border-purple-200/40 shrink-0">
-                          <UserCheck size={14} />
-                        </div>
-                        <div>
-                          <h3 className="text-xs font-bold text-ink leading-none">
-                            Policy Ownership & Outsource
-                          </h3>
-                          <p className="text-[11px] text-ink-faint mt-1">
-                            Specify if this policy is outsourced to an associate agent
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="pt-1 space-y-3">
-                        <Checkbox
-                          id="policy_is_outsourced"
-                          checked={!!watchIsOutsourced}
-                          onCheckedChange={(checked) => {
-                            setValue('isOutsourced', checked);
-                            if (!checked) {
-                              setValue('associateAgentId', '');
-                            }
-                            if (selectedClientObj && selectedClientObj.isOutsourced !== checked) {
-                              setSelectedClientId(null);
-                              setSelectedClientObj(null);
-                              setValue('insuredName', '');
-                              setValue('mobileNumber', '');
-                            }
-                          }}
-                          label={
-                            <span className="flex items-center gap-1.5 font-semibold text-ink text-sm">
-                              <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
-                              Outsourced / Other Agent Policy
-                            </span>
-                          }
-                        />
-
-                        {watchIsOutsourced && (
-                          <div className="pl-7 space-y-3 pt-1">
-                            <div className="flex items-end gap-2 w-full min-w-0">
-                              <div className="flex-1 min-w-0">
-                                <Select
-                                  label="Select Associate Agent"
-                                  value={watchAssociateAgentId ?? ''}
-                                  onValueChange={(val) => {
-                                    setValue('associateAgentId', val);
-                                    if (selectedClientObj && selectedClientObj.associateAgentId !== val) {
-                                      setSelectedClientId(null);
-                                      setSelectedClientObj(null);
-                                      setValue('insuredName', '');
-                                      setValue('mobileNumber', '');
-                                    }
-                                  }}
-                                  options={associateAgentOptions}
-                                  error={errors.associateAgentId?.message}
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                title="Add Associate Agent"
-                                className="shrink-0 flex h-11 w-11 items-center justify-center p-0 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10 active:scale-95 transition-all rounded-xl"
-                                onClick={() => {
-                                  setIsAddAgentOpen(true);
-                                }}
-                              >
-                                <Plus size={18} />
-                              </Button>
-                            </div>
-                            {watchAssociateAgentId ? (
-                              <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
-                                Filtering clients registered under selected Associate Agent.
-                              </p>
-                            ) : (
-                              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                                Select an Associate Agent to filter their clients in the search below.
-                              </p>
-                            )}
+                    {currentUser?.isOutsourcedEnabled && (
+                      <div className="space-y-3 bg-surface border border-line p-5 sm:p-6 rounded-2xl shadow-sm text-left">
+                        <div className="flex items-center gap-2.5 pb-3 border-b border-line">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950/45 text-purple-700 dark:text-purple-300 border border-purple-200/40 shrink-0">
+                            <UserCheck size={14} />
                           </div>
-                        )}
+                          <div>
+                            <h3 className="text-xs font-bold text-ink leading-none">
+                              Policy Ownership & Outsource
+                            </h3>
+                            <p className="text-[11px] text-ink-faint mt-1">
+                              Specify if this policy is outsourced to an associate agent
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-1 space-y-3">
+                          <Checkbox
+                            id="policy_is_outsourced"
+                            checked={!!watchIsOutsourced}
+                            onCheckedChange={(checked) => {
+                              setValue('isOutsourced', checked);
+                              if (!checked) {
+                                setValue('associateAgentId', '');
+                              }
+                              if (selectedClientObj && selectedClientObj.isOutsourced !== checked) {
+                                setSelectedClientId(null);
+                                setSelectedClientObj(null);
+                                setValue('insuredName', '');
+                                setValue('mobileNumber', '');
+                              }
+                            }}
+                            label={
+                              <span className="flex items-center gap-1.5 font-semibold text-ink text-sm">
+                                <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
+                                Outsourced / Other Agent Policy
+                              </span>
+                            }
+                          />
+
+                          {watchIsOutsourced && (
+                            <div className="pl-7 space-y-3 pt-1">
+                              <div className="flex items-end gap-2 w-full min-w-0">
+                                <div className="flex-1 min-w-0">
+                                  <Select
+                                    label="Select Associate Agent"
+                                    value={watchAssociateAgentId ?? ''}
+                                    onValueChange={(val) => {
+                                      setValue('associateAgentId', val);
+                                      if (selectedClientObj && selectedClientObj.associateAgentId !== val) {
+                                        setSelectedClientId(null);
+                                        setSelectedClientObj(null);
+                                        setValue('insuredName', '');
+                                        setValue('mobileNumber', '');
+                                      }
+                                    }}
+                                    options={associateAgentOptions}
+                                    error={errors.associateAgentId?.message}
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  title="Add Associate Agent"
+                                  className="shrink-0 flex h-11 w-11 items-center justify-center p-0 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10 active:scale-95 transition-all rounded-xl"
+                                  onClick={handleOpenAddAgentModal}
+                                >
+                                  <Plus size={18} />
+                                </Button>
+                              </div>
+                              {watchAssociateAgentId ? (
+                                <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                                  Filtering clients registered under selected Associate Agent.
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                                  Select an Associate Agent to filter their clients in the search below.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Link to Existing Client — filtered by Outsourced & Associate Agent selection */}
                     <ClientSearch
@@ -1115,7 +1131,7 @@ export default function PolicyFormPage() {
                           <User size={13} />
                         </div>
                         <h3 className="text-xs font-bold text-ink leading-none">
-                          Insured Target
+                          Insured Target & Reference
                         </h3>
                       </div>
 
@@ -1150,6 +1166,13 @@ export default function PolicyFormPage() {
                           {...register('insuredPersonName')}
                         />
                       )}
+
+                      <Input
+                        label="Reference Name (Optional)"
+                        placeholder="e.g. Oasis EV Car, Riro"
+                        error={errors.referenceName?.message}
+                        {...register('referenceName')}
+                      />
                     </div>
                   </div>
 
@@ -1192,7 +1215,6 @@ export default function PolicyFormPage() {
                       render={({ field }) => (
                         <Select
                           label="Insurance Provider / Agency"
-                          required
                           value={field.value ?? ''}
                           onValueChange={(newValue) => {
                             field.onChange(newValue);
@@ -1220,7 +1242,6 @@ export default function PolicyFormPage() {
                     <Input
                       label="Policy Number"
                       placeholder="e.g. POL123456"
-                      required
                       error={errors.policyNumber?.message}
                       {...register('policyNumber')}
                     />
@@ -1624,7 +1645,7 @@ export default function PolicyFormPage() {
       {/* Quick Add Associate Agent Dialog */}
       <Dialog
         open={isAddAgentOpen}
-        onClose={() => setIsAddAgentOpen(false)}
+        onClose={handleCloseAddAgentModal}
         title="Quick Add Associate Agent"
         description="Add a new external partner agent to link to this policy."
       >
@@ -1642,7 +1663,7 @@ export default function PolicyFormPage() {
             onChange={(e) => setNewAgentMobile(e.target.value)}
           />
           <div className="flex justify-end gap-2 pt-4 border-t border-line/45 mt-4">
-            <Button variant="outline" type="button" onClick={() => setIsAddAgentOpen(false)}>
+            <Button variant="outline" type="button" onClick={handleCloseAddAgentModal}>
               Cancel
             </Button>
             <Button

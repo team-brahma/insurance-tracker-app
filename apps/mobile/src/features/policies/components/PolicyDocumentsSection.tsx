@@ -33,7 +33,7 @@ interface BatchFileItem {
   id: string;
   file: File;
   year: string;
-  error?: string;
+  error?: string | undefined;
 }
 
 export function PolicyDocumentsSection({ policyId, defaultYear }: PolicyDocumentsSectionProps) {
@@ -77,10 +77,10 @@ export function PolicyDocumentsSection({ policyId, defaultYear }: PolicyDocument
   const searchLower = search.trim().toLowerCase();
   const documents = searchLower
     ? rawDocuments.filter(
-        (doc) =>
-          doc.year.toString().includes(searchLower) ||
-          doc.fileName.toLowerCase().includes(searchLower),
-      )
+      (doc) =>
+        doc.year.toString().includes(searchLower) ||
+        doc.fileName.toLowerCase().includes(searchLower),
+    )
     : rawDocuments;
 
   // Infinite Scroll Trigger on Card Viewport
@@ -157,6 +157,7 @@ export function PolicyDocumentsSection({ policyId, defaultYear }: PolicyDocument
       }
       return { ...item, error: undefined };
     });
+
 
     if (hasValidationError) {
       setBatchItems(validatedItems);

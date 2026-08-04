@@ -13,6 +13,7 @@ import {
 } from '@features/policies/hooks/useSettingsQuery.js';
 import { useThemeStore } from '@features/settings/store/ThemeStore.js';
 import type { Theme } from '@features/settings/store/ThemeStore.js';
+import { useAuthStore } from '@features/auth/store/AuthStore.js';
 
 const stagger = {
   hidden: {},
@@ -48,6 +49,7 @@ const timeOptions = Array.from({ length: 24 }).flatMap((_, h) => {
 });
 
 export default function SettingsPage() {
+  const user = useAuthStore((s) => s.user);
   const history = useHistory();
   const { data: settingsData, isLoading } = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
@@ -190,21 +192,23 @@ export default function SettingsPage() {
                 />
               </SettingsRow>
 
-              <SettingsRow
-                icon={<UserCheck size={16} className="text-purple-500" />}
-                title="Associate Agents"
-                description="Manage external partner agents who outsource policies to you."
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => history.push('/associate-agents')}
-                  className="gap-1 font-semibold w-full sm:w-auto"
+              {user?.isOutsourcedEnabled && (
+                <SettingsRow
+                  icon={<UserCheck size={16} className="text-purple-500" />}
+                  title="Associate Agents"
+                  description="Manage external partner agents who outsource policies to you."
                 >
-                  <span>Manage</span>
-                  <ChevronRight size={14} />
-                </Button>
-              </SettingsRow>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => history.push('/associate-agents')}
+                    className="gap-1 font-semibold w-full sm:w-auto"
+                  >
+                    <span>Manage</span>
+                    <ChevronRight size={14} />
+                  </Button>
+                </SettingsRow>
+              )}
             </div>
           </SurfaceCard>
         </motion.div>

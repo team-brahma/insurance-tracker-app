@@ -22,12 +22,14 @@ import BulkImportPage from '@pages/BulkImportPage.js';
 function ProtectedRoute({
   component,
   allowedRoles,
+  requireOutsourced = false,
   ...rest
 }: {
   component: React.ComponentType<RouteComponentProps>;
   exact?: boolean;
   path?: string;
   allowedRoles?: ('ADMIN' | 'AGENT')[];
+  requireOutsourced?: boolean;
 }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
@@ -39,6 +41,9 @@ function ProtectedRoute({
         if (!isAuthenticated) return <Redirect to="/login" />;
         if (allowedRoles && user && !allowedRoles.includes(user.role)) {
           return <Redirect to={user.role === 'ADMIN' ? '/users' : '/policies'} />;
+        }
+        if (requireOutsourced && user && user.role !== 'ADMIN' && !user.isOutsourcedEnabled) {
+          return <Redirect to="/policies" />;
         }
         return <Component {...props} />;
       }}
@@ -137,6 +142,7 @@ export function AppRoutes() {
         path="/associate-agents"
         component={AssociateAgentsPage}
         allowedRoles={['AGENT']}
+        requireOutsourced
       />
       <ProtectedRoute
         exact

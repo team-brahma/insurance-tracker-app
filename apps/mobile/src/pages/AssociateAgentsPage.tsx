@@ -16,7 +16,6 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 import AppShellPage from '@components/layout/AppShellPage.js';
 import EmptyState from '@components/ui/EmptyState.js';
 import PageLoader from '@components/ui/PageLoader.js';
@@ -139,10 +138,8 @@ export default function AssociateAgentsPage() {
 
       if (editingAgent) {
         await updateMutation.mutateAsync({ id: editingAgent.id, data: payload });
-        toast.success(`Associate agent "${values.name}" updated successfully.`);
       } else {
         await createMutation.mutateAsync(payload);
-        toast.success(`Associate agent "${values.name}" created successfully.`);
       }
       setIsOpen(false);
     } catch {
@@ -154,7 +151,6 @@ export default function AssociateAgentsPage() {
     if (!deleteTargetId) return;
     try {
       await deleteMutation.mutateAsync(deleteTargetId);
-      toast.success('Associate agent deleted successfully.');
       setIsDeleteOpen(false);
     } catch {
       // Error handled globally by Query MutationCache in App.tsx

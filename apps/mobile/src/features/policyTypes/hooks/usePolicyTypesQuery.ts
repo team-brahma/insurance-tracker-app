@@ -35,6 +35,10 @@ export function useCreatePolicyTypeMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: policyTypeKeys.all });
     },
+    meta: {
+      successMessage: (variables: { name: string }) =>
+        `Policy type "${variables.name}" created successfully.`,
+    },
   });
 }
 
@@ -46,6 +50,12 @@ export function useUpdatePolicyTypeMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: policyTypeKeys.all });
     },
+    meta: {
+      successMessage: (variables: { id: string; data: Partial<{ name: string }> }) =>
+        variables.data.name
+          ? `Policy type "${variables.data.name}" updated successfully.`
+          : 'Policy type updated successfully.',
+    },
   });
 }
 
@@ -55,6 +65,9 @@ export function useDeletePolicyTypeMutation() {
     mutationFn: (id: string) => policyTypeService.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: policyTypeKeys.all });
+    },
+    meta: {
+      successMessage: 'Policy type deleted successfully.',
     },
   });
 }

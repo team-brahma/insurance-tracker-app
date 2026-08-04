@@ -6,6 +6,7 @@ export const createClientSchema = z.object({
     .string()
     .min(1, 'Insured name is required')
     .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+  referenceName: z.string().nullish(),
   mobileNumber: z
     .string()
     .min(1, 'Mobile number is required')
@@ -22,6 +23,7 @@ export const updateClientSchema = z.object({
     .min(1, 'Insured name is required')
     .regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME)
     .nullish(),
+  referenceName: z.string().nullish(),
   mobileNumber: z
     .string()
     .refine((v) => v === '' || VALIDATION.INDIA_MOBILE.test(v), {

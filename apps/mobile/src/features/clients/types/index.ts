@@ -16,6 +16,7 @@ export interface ClientListParams {
 
 export interface ClientFormData {
   insuredName: string;
+  referenceName?: string | null;
   mobileNumber: string;
   isOutsourced?: boolean;
   associateAgentId?: string | null;

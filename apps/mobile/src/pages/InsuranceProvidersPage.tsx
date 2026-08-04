@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { useSearch } from '@hooks/useSearch.js';
 import { Search, Plus, Trash2, Building2, Pencil, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 import AppShellPage from '@components/layout/AppShellPage.js';
 import EmptyState from '@components/ui/EmptyState.js';
 import PageLoader from '@components/ui/PageLoader.js';
@@ -135,10 +134,8 @@ export default function InsuranceProvidersPage() {
     try {
       if (editingProvider) {
         await updateMutation.mutateAsync({ id: editingProvider.id, data: values });
-        toast.success(`Insurance provider "${values.name}" updated successfully.`);
       } else {
         await createMutation.mutateAsync(values);
-        toast.success(`Insurance provider "${values.name}" created successfully.`);
       }
       setIsOpen(false);
     } catch {
@@ -150,7 +147,6 @@ export default function InsuranceProvidersPage() {
     if (!deleteTargetId) return;
     try {
       await deleteMutation.mutateAsync(deleteTargetId);
-      toast.success('Insurance provider deleted successfully.');
       setIsDeleteOpen(false);
     } catch {
       // Error handled globally by Query MutationCache in App.tsx

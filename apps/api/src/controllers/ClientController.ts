@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { clientService } from '@services/ClientService.js';
 import { assertAuthenticated } from '@middlewares/Auth.js';
+import { getDb } from '@database/index.js';
 import { ValidationError } from '@errors/AppError.js';
 import { HTTP_STATUS } from '@repo/constants';
 import { normaliseMobile } from '@repo/utils';
@@ -16,17 +17,30 @@ export const clientController = {
         parsed.error.issues.map((e: { message: string }) => e.message).join('; '),
       );
     const body = parsed.data;
+    const db = getDb();
+    const user = await db.user.findUnique({
+      where: { id: agentId },
+      select: { isOutsourcedEnabled: true },
+    });
+
     const createData: {
       insuredName: string;
+      referenceName?: string | null;
       mobileNumber: string;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
     } = {
       insuredName: body.insuredName,
+      referenceName: body.referenceName ?? null,
       mobileNumber: normaliseMobile(body.mobileNumber)!,
     };
-    if (body.isOutsourced !== undefined) createData.isOutsourced = body.isOutsourced;
-    if (body.associateAgentId !== undefined) createData.associateAgentId = body.associateAgentId;
+    if (user?.isOutsourcedEnabled) {
+      if (body.isOutsourced !== undefined) createData.isOutsourced = body.isOutsourced;
+      if (body.associateAgentId !== undefined) createData.associateAgentId = body.associateAgentId;
+    } else {
+      createData.isOutsourced = false;
+      createData.associateAgentId = null;
+    }
 
     const client = await clientService.create(agentId, createData);
     sanitizeClient(client as Record<string, unknown>);
@@ -75,11 +89,23 @@ export const clientController = {
         parsed.error.issues.map((e: { message: string }) => e.message).join('; '),
       );
     const body = parsed.data;
+    const db = getDb();
+    const user = await db.user.findUnique({
+      where: { id: agentId },
+      select: { isOutsourcedEnabled: true },
+    });
+
     const data: Record<string, unknown> = {};
     if (body.insuredName !== undefined) data.insuredName = body.insuredName;
+    if (body.referenceName !== undefined) data.referenceName = body.referenceName;
     if (body.mobileNumber !== undefined) data.mobileNumber = normaliseMobile(body.mobileNumber);
-    if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
-    if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
+    if (user?.isOutsourcedEnabled) {
+      if (body.isOutsourced !== undefined) data.isOutsourced = body.isOutsourced;
+      if (body.associateAgentId !== undefined) data.associateAgentId = body.associateAgentId;
+    } else {
+      data.isOutsourced = false;
+      data.associateAgentId = null;
+    }
     const client = await clientService.update(agentId, id, data);
     sanitizeClient(client as Record<string, unknown>);
     return reply.code(HTTP_STATUS.OK).send({ success: true, data: client });

@@ -120,12 +120,16 @@ export default function FloatingNav() {
       icon: Building2,
       isActive: () => currentPath === '/insurance-providers',
     },
-    {
-      label: 'Associate Agents',
-      path: '/associate-agents',
-      icon: UserCheck,
-      isActive: () => currentPath.startsWith('/associate-agents'),
-    },
+    ...(user?.isOutsourcedEnabled
+      ? [
+          {
+            label: 'Associate Agents',
+            path: '/associate-agents',
+            icon: UserCheck,
+            isActive: () => currentPath.startsWith('/associate-agents'),
+          },
+        ]
+      : []),
     {
       label: 'Settings',
       path: '/settings',

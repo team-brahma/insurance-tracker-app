@@ -7,13 +7,18 @@ import { useMemo } from 'react';
  * Uses OffscreenCanvas for pixel-accurate text measurement (font-extrabold 16px Inter).
  * Falls back to a ~9px-per-character estimate when OffscreenCanvas is unavailable.
  *
- * @param names      - Display strings to measure (e.g. card titles / names)
- * @param extraWidth - Optional extra px to add on top of the computed width (default: 0)
+ * @param names         - Display strings to measure (e.g. card titles / names)
+ * @param extraWidth    - Optional extra px to add on top of the computed width (default: 0)
+ * @param minWidthFloor - Minimum allowed width floor in px (default: 260)
  * @returns Minimum column width in pixels, ready for use in CSS `minmax()`
  */
-export function useCardGridWidth(names: string[], extraWidth = 0): number {
+export function useCardGridWidth(
+  names: string[],
+  extraWidth = 0,
+  minWidthFloor = 180,
+): number {
   return useMemo(() => {
-    if (!names.length) return 200;
+    if (!names.length) return minWidthFloor;
 
     const longestName = names.reduce((a, b) => (b.length > a.length ? b : a), '');
 
@@ -29,6 +34,8 @@ export function useCardGridWidth(names: string[], extraWidth = 0): number {
     }
 
     // Fixed card chrome: avatar(44) + gap(12) + padding L+R(40) + buffer(16)
-    return Math.ceil(textWidth + 44 + 12 + 40 + 16 + extraWidth);
-  }, [names, extraWidth]);
+    const calculatedWidth = Math.ceil(textWidth + 44 + 12 + 40 + 16 + extraWidth);
+
+    return Math.max(calculatedWidth, minWidthFloor);
+  }, [names, extraWidth, minWidthFloor]);
 }

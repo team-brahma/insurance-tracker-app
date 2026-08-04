@@ -18,6 +18,7 @@ model User {
   name      String
   role      UserRole @default(AGENT)
   fcmToken  String?  @map("fcm_token")
+  isOutsourcedEnabled Boolean @default(false) @map("is_outsourced_enabled")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -101,6 +102,7 @@ model Client {
   id               String          @id @default(uuid())
   agentId          String          @map("agent_id")
   insuredName      String          @map("insured_name")
+  referenceName    String?         @map("reference_name")
   mobileNumber     String?         @map("mobile_number")
   isOutsourced     Boolean         @default(false) @map("is_outsourced")
   associateAgentId String?         @map("associate_agent_id")
@@ -123,6 +125,7 @@ model Policy {
   insuranceProviderId String?                  @map("insurance_provider_id")
   vehicleNumber       String?                  @map("vehicle_number")
   policyNumber        String?                  @map("policy_number")
+  referenceName       String?                  @map("reference_name")
   referenceNote       String?                  @map("reference_note")
   typeNote            String?                  @map("type_note")
   endDate             DateTime                 @map("end_date")

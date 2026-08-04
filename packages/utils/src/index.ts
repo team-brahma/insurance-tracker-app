@@ -255,14 +255,17 @@ export function formatSmartClientName(name: string): string {
       if (
         /^\d+[A-Z]+$/.test(upper) ||
         /^[A-Z]+\d+$/.test(upper) ||
-        /^(MAF|GST|NCB|TP|OD|HP|PA|WC|RTO|IDV|II|III|IV|V)$/.test(upper) ||
+        /^(MAF|GST|NCB|TP|OD|HP|PA|WC|RTO|IDV|II|III|IV|V|GCV|PCV|TW|FW|EV|LPG|CNG|MISC|MISCD|GMC|GPA|GTL|SME)$/.test(upper) ||
         (/^[A-Z]\.?$/.test(upper) && word === upper)
       ) {
         return upper;
       }
       return word.replace(/([a-zA-Z0-9]+)/g, (match) => {
         const matchUpper = match.toUpperCase();
-        if (/^\d+[A-Z]+$/.test(matchUpper) || /^(MAF|GST|NCB|TP|OD|HP|PA|WC)$/.test(matchUpper)) {
+        if (
+          /^\d+[A-Z]+$/.test(matchUpper) ||
+          /^(MAF|GST|NCB|TP|OD|HP|PA|WC|RTO|IDV|GCV|PCV|TW|FW|EV|LPG|CNG|MISC|MISCD|GMC|GPA|GTL|SME)$/.test(matchUpper)
+        ) {
           return matchUpper;
         }
         return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
@@ -270,3 +273,6 @@ export function formatSmartClientName(name: string): string {
     })
     .join(' ');
 }
+
+export const formatSmartPolicyTypeName = formatSmartClientName;
+export const formatSmartName = formatSmartClientName;

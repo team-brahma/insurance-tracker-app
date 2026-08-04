@@ -6,6 +6,7 @@ import { VALIDATION, isAuthenticPolicyNumber } from '@repo/constants';
 export interface RawRow {
   insuranceHolderName: string;
   mobileNumber: string | null;
+  referenceName: string | null;
   clientName: string | null;
   outsourceAgentName: string | null;
   outsourceAgentPhone: string | null;
@@ -22,6 +23,7 @@ export interface RowProcessStatus {
   rowNumber: number;
   clientName: string;
   mobileNumber: string | null;
+  referenceName?: string | null;
   associate: string | null;
   agentName: string | null;
   agentPhone: string | null;
@@ -89,15 +91,16 @@ export function parseExcel(buffer: Buffer): RawRow[] {
 
   const idxInsured = findColIndex(['INSURED', 'HOLDER', 'COVERED'], 0);
   const idxMobile = findColIndex(['MOBILE', 'PHONE', 'CONTACT'], 1);
-  const idxAssociate = findColIndex(['ASSOCIATE', 'MAIN CLIENT'], 2);
-  const idxAgentName = findColIndex(['OUTSOURCE AGENT NAME', 'AGENT NAME'], 3);
-  const idxAgentPhone = findColIndex(['OUTSOURCE AGENT PHONE', 'OUTSOURCE AGENT MOBILE', 'AGENT PHONE', 'AGENT MOBILE'], 4);
-  const idxPolicyType = findColIndex(['POLICY TYPE', 'TYPE'], 5);
-  const idxVehicle = findColIndex(['VEHICLE'], 6);
-  const idxPolicyNum = findColIndex(['POLICY NUMBER', 'POLICY NO'], 7);
-  const idxEndDate = findColIndex(['END DATE', 'EXPIRY'], 8);
-  const idxPremium = findColIndex(['PREMIUM'], 9);
-  const idxRefNote = findColIndex(['REFERENCE', 'NOTE', 'REMARKS'], 10);
+  const idxRefName = findColIndex(['REFERENCE NAME', 'REF NAME'], 2);
+  const idxAssociate = findColIndex(['ASSOCIATE', 'MAIN CLIENT'], 3);
+  const idxAgentName = findColIndex(['OUTSOURCE AGENT NAME', 'AGENT NAME'], 4);
+  const idxAgentPhone = findColIndex(['OUTSOURCE AGENT PHONE', 'OUTSOURCE AGENT MOBILE', 'AGENT PHONE', 'AGENT MOBILE'], 5);
+  const idxPolicyType = findColIndex(['POLICY TYPE', 'TYPE'], 6);
+  const idxVehicle = findColIndex(['VEHICLE'], 7);
+  const idxPolicyNum = findColIndex(['POLICY NUMBER', 'POLICY NO'], 8);
+  const idxEndDate = findColIndex(['END DATE', 'EXPIRY'], 9);
+  const idxPremium = findColIndex(['PREMIUM'], 10);
+  const idxRefNote = findColIndex(['REFERENCE NOTE', 'REMARKS'], 11);
 
   const dataRows = rawRows.slice(1);
   const result: RawRow[] = [];
@@ -110,6 +113,7 @@ export function parseExcel(buffer: Buffer): RawRow[] {
 
     const insuranceHolderName = safeString(row[idxInsured]).trim();
     const rawMobile = safeString(row[idxMobile]).trim();
+    const rawRefName = safeString(row[idxRefName]).trim();
     const rawClientName = safeString(row[idxAssociate]).trim();
     const rawAgentName = safeString(row[idxAgentName]).trim();
     const rawAgentPhone = safeString(row[idxAgentPhone]).trim();
@@ -120,6 +124,7 @@ export function parseExcel(buffer: Buffer): RawRow[] {
     result.push({
       insuranceHolderName,
       mobileNumber: rawMobile || null,
+      referenceName: rawRefName || null,
       clientName: rawClientName || null,
       outsourceAgentName: rawAgentName || null,
       outsourceAgentPhone: rawAgentPhone || null,
@@ -186,6 +191,7 @@ interface ValidatedRow {
   insuranceHolderName: string;
   mainClientName: string;
   isAssociatePolicy: boolean;
+  referenceName: string | null;
   agentName: string | null;
   agentPhone: string | null;
   mobileNumber: string | null;
@@ -209,11 +215,12 @@ function normalizeForNameMatch(name: string): string {
 
 function validateRow(row: RawRow): ValidatedRow {
   const insuranceHolderName = formatSmartClientName(row.insuranceHolderName.trim());
+  const referenceName = row.referenceName ? formatSmartClientName(row.referenceName.trim()) : null;
   const rawClientName = row.clientName ? formatSmartClientName(row.clientName.trim()) : null;
   const agentName = row.outsourceAgentName ? formatSmartClientName(row.outsourceAgentName.trim()) : null;
   const agentPhone = row.outsourceAgentPhone ? row.outsourceAgentPhone.trim() : null;
   const mobileNumber = row.mobileNumber ? row.mobileNumber.trim() : null;
-  const policyTypeName = row.policyTypeName.trim();
+  const policyTypeName = formatSmartClientName(row.policyTypeName.trim());
   const vehicleNumber = row.vehicleNumber ? row.vehicleNumber.trim() : null;
   const rawPolicyNumber = row.policyNumber ? row.policyNumber.trim() : null;
   const premiumPrice = row.premiumPrice;
@@ -303,6 +310,7 @@ function validateRow(row: RawRow): ValidatedRow {
     insuranceHolderName,
     mainClientName,
     isAssociatePolicy,
+    referenceName,
     agentName,
     agentPhone,
     mobileNumber,
@@ -344,6 +352,7 @@ export async function processBulkImport(
       insuranceHolderName,
       mainClientName,
       isAssociatePolicy,
+      referenceName,
       agentName,
       agentPhone,
       mobileNumber,
@@ -374,6 +383,7 @@ export async function processBulkImport(
         rowNumber: row.rowNumber,
         clientName: insuranceHolderName,
         mobileNumber,
+        referenceName,
         associate: isAssociatePolicy ? mainClientName : null,
         agentName,
         agentPhone,
@@ -408,9 +418,8 @@ export async function processBulkImport(
           if (existingPt) {
             policyTypeId = existingPt.id;
           } else {
-            const capitalized = policyTypeName.charAt(0).toUpperCase() + policyTypeName.slice(1);
             const newPt = await tx.policyTypeMaster.create({
-              data: { name: capitalized },
+              data: { name: policyTypeName },
               select: { id: true },
             });
             policyTypeId = newPt.id;
@@ -453,7 +462,7 @@ export async function processBulkImport(
 
         const existingClient = await tx.client.findFirst({
           where: { agentId, mobileNumber: mobile },
-          select: { id: true, insuredName: true, isOutsourced: true, associateAgentId: true },
+          select: { id: true, insuredName: true, referenceName: true, isOutsourced: true, associateAgentId: true },
         });
 
         if (existingClient) {
@@ -465,11 +474,19 @@ export async function processBulkImport(
           clientId = existingClient.id;
           rowMatchedClient = true;
 
-          // If client exists but now has an outsource agent attached, update client flags
+          // If client exists but now has referenceName or outsource agent attached, update client
+          const clientUpdates: Record<string, unknown> = {};
           if (isOutsourced && (!existingClient.isOutsourced || existingClient.associateAgentId !== subAgentId)) {
+            clientUpdates.isOutsourced = true;
+            clientUpdates.associateAgentId = subAgentId;
+          }
+          if (referenceName && !existingClient.referenceName) {
+            clientUpdates.referenceName = referenceName;
+          }
+          if (Object.keys(clientUpdates).length > 0) {
             await tx.client.update({
               where: { id: existingClient.id },
-              data: { isOutsourced: true, associateAgentId: subAgentId },
+              data: clientUpdates,
             });
           }
         } else {
@@ -477,6 +494,7 @@ export async function processBulkImport(
           const newClient = await tx.client.create({
             data: {
               insuredName: mainClientName,
+              referenceName,
               mobileNumber: mobile,
               agentId,
               isOutsourced,
@@ -520,6 +538,7 @@ export async function processBulkImport(
             policyTypeId,
             vehicleNumber: vehicleNumber ?? null,
             policyNumber: policyNumber ?? null,
+            referenceName,
             endDate,
             premiumPrice,
             referenceNote: referenceNote ?? null,
@@ -554,6 +573,7 @@ export async function processBulkImport(
           rowNumber: row.rowNumber,
           clientName: insuranceHolderName,
           mobileNumber,
+          referenceName,
           associate: isAssociatePolicy ? mainClientName : null,
           agentName,
           agentPhone,
@@ -577,6 +597,7 @@ export async function processBulkImport(
           rowNumber: row.rowNumber,
           clientName: insuranceHolderName,
           mobileNumber,
+          referenceName,
           associate: isAssociatePolicy ? mainClientName : null,
           agentName,
           agentPhone,
@@ -596,6 +617,7 @@ export async function processBulkImport(
         rowNumber: row.rowNumber,
         clientName: insuranceHolderName,
         mobileNumber,
+        referenceName,
         associate: isAssociatePolicy ? mainClientName : null,
         agentName,
         agentPhone,
@@ -664,6 +686,7 @@ export async function previewBulkImport(
       insuranceHolderName,
       mainClientName,
       isAssociatePolicy,
+      referenceName,
       agentName,
       agentPhone,
       mobileNumber,
@@ -694,6 +717,7 @@ export async function previewBulkImport(
         rowNumber: row.rowNumber,
         clientName: insuranceHolderName,
         mobileNumber,
+        referenceName,
         associate: isAssociatePolicy ? mainClientName : null,
         agentName,
         agentPhone,
@@ -802,6 +826,7 @@ export async function previewBulkImport(
             rowNumber: row.rowNumber,
             clientName: insuranceHolderName,
             mobileNumber,
+            referenceName,
             associate: isAssociatePolicy ? mainClientName : null,
             agentName,
             agentPhone,
@@ -828,6 +853,7 @@ export async function previewBulkImport(
         rowNumber: row.rowNumber,
         clientName: insuranceHolderName,
         mobileNumber,
+        referenceName,
         associate: isAssociatePolicy ? mainClientName : null,
         agentName,
         agentPhone,
@@ -846,6 +872,7 @@ export async function previewBulkImport(
         rowNumber: row.rowNumber,
         clientName: insuranceHolderName,
         mobileNumber,
+        referenceName,
         associate: isAssociatePolicy ? mainClientName : null,
         agentName,
         agentPhone,

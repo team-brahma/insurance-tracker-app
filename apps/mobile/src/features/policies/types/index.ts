@@ -13,6 +13,7 @@ export interface PolicyListParams {
   policyType?: string;
   renewalStatus?: string;
   urgency?: string;
+  month?: string;
   page?: number;
   limit?: number;
 }
@@ -22,6 +23,7 @@ export interface PolicyFormData {
   enquiryId?: string;
   insuredName: string;
   mobileNumber?: string;
+  referenceName?: string;
   referenceNote?: string;
   policyType: string;
   vehicleNumber?: string;

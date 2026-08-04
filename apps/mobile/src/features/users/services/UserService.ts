@@ -1,5 +1,5 @@
 import { httpClient } from '@services/HttpClient.js';
-import type { ApiResponse, User, RegisterDto } from '@repo/types';
+import type { ApiResponse, User, RegisterDto, UpdateUserDto } from '@repo/types';
 
 export interface UserListParams {
   search?: string;
@@ -38,6 +38,10 @@ export const userService = {
   },
   async createUser(dto: RegisterDto): Promise<ApiResponse<User>> {
     const { data } = await httpClient.post<ApiResponse<User>>('/api/v1/users', dto);
+    return data;
+  },
+  async updateUser(id: string, dto: UpdateUserDto): Promise<ApiResponse<User>> {
+    const { data } = await httpClient.patch<ApiResponse<User>>(`/api/v1/users/${id}`, dto);
     return data;
   },
   async deleteUser(id: string): Promise<ApiResponse<{ message: string }>> {

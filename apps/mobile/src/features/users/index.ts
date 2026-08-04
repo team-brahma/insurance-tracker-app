@@ -3,5 +3,6 @@ export {
   useUsersQuery,
   useInfiniteUsersQuery,
   useCreateUserMutation,
+  useUpdateUserMutation,
   useDeleteUserMutation,
 } from './hooks/useUsersQuery.js';

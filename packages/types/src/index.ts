@@ -86,6 +86,7 @@ export type UpdateAssociateAgentDto = Partial<CreateAssociateAgentDto>;
 
 export interface Client extends BaseEntity {
   insuredName: string;
+  referenceName?: string | null;
   mobileNumber: string;
   isOutsourced?: boolean;
   associateAgentId?: string | null;
@@ -122,6 +123,7 @@ export interface Policy extends BaseEntity {
   insuranceProvider?: InsuranceProviderMaster | null;
   vehicleNumber: string | null;
   policyNumber: string | null;
+  referenceName?: string | null;
   referenceNote: string | null;
   typeNote: string | null;
   endDate: string;
@@ -180,6 +182,7 @@ export interface CreatePolicyDto {
   enquiryId?: string;
   insuredName: string;
   mobileNumber?: string | null;
+  referenceName?: string | null;
   referenceNote?: string | null;
   policyTypeId: string;
   insuranceProviderId?: string | null;
@@ -204,6 +207,7 @@ export type UpdatePolicyDto = Partial<CreatePolicyDto>;
 
 export interface CreateClientDto {
   insuredName: string;
+  referenceName?: string | null;
   mobileNumber: string;
   isOutsourced?: boolean;
   associateAgentId?: string | null;
@@ -217,6 +221,7 @@ export interface User extends BaseEntity {
   email: string;
   name: string;
   role: UserRole;
+  isOutsourcedEnabled?: boolean | undefined;
 }
 
 export interface AuthTokens {
@@ -227,14 +232,23 @@ export interface AuthTokens {
 export interface LoginDto {
   email: string;
   password: string;
-  fcmToken?: string | null;
+  fcmToken?: string | null | undefined;
 }
 
 export interface RegisterDto {
   email: string;
   password: string;
   name: string;
-  role?: UserRole;
+  role?: UserRole | undefined;
+  isOutsourcedEnabled?: boolean | undefined;
+}
+
+export interface UpdateUserDto {
+  email?: string | undefined;
+  password?: string | undefined;
+  name?: string | undefined;
+  role?: UserRole | undefined;
+  isOutsourcedEnabled?: boolean | undefined;
 }
 
 export interface UpdateSettingsDto {

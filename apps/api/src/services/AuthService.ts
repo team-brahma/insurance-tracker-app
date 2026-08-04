@@ -13,6 +13,7 @@ function sanitizeUser(user: {
   email: string;
   name: string;
   role: string;
+  isOutsourcedEnabled?: boolean;
   createdAt: Date;
 }) {
   return {
@@ -20,6 +21,7 @@ function sanitizeUser(user: {
     email: user.email,
     name: user.name,
     role: user.role,
+    isOutsourcedEnabled: user.isOutsourcedEnabled ?? false,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -63,6 +65,7 @@ export const authService = {
     password: string;
     name: string;
     role?: 'ADMIN' | 'AGENT';
+    isOutsourcedEnabled?: boolean;
   }) {
     const existing = await userRepository.findByEmail(data.email);
     if (existing) throw new ConflictError('Email already registered');

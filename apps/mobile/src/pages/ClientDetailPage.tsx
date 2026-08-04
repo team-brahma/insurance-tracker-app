@@ -9,6 +9,7 @@ import {
   Calendar,
   ChevronRight,
   UserCheck,
+  Tag,
 } from 'lucide-react';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -196,9 +197,17 @@ export default function ClientDetailPage() {
                     {initials(name)}
                   </div>
                   <div className="text-left min-w-0">
-                    <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-ink leading-tight tracking-tight break-words">
-                      {name}
-                    </h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-ink leading-tight tracking-tight break-words">
+                        {name}
+                      </h2>
+                      {client.referenceName && (
+                        <span className="mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-teal-500/10 dark:bg-teal-400/15 text-teal-800 dark:text-teal-200 border border-teal-500/30 dark:border-teal-400/40 text-xs font-black shadow-2xs backdrop-blur-xs">
+                          <Tag size={11} className="text-teal-600 dark:text-teal-400 shrink-0" />
+                          <span>({client.referenceName})</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -244,6 +253,17 @@ export default function ClientDetailPage() {
                     </span>
                     <span className="font-extrabold text-ink">{name}</span>
                   </div>
+                  {client.referenceName && (
+                    <div>
+                      <span className="text-ink-faint font-semibold block text-[11px]">
+                        Reference Name
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-teal-500/10 dark:bg-teal-400/15 text-teal-800 dark:text-teal-200 border border-teal-500/30 dark:border-teal-400/40 text-xs font-black shadow-2xs mt-0.5">
+                        <Tag size={11} className="text-teal-600 dark:text-teal-400 shrink-0" />
+                        <span>{client.referenceName}</span>
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <span className="text-ink-faint font-semibold block text-[11px]">
                       Mobile Number
@@ -374,12 +394,12 @@ export default function ClientDetailPage() {
                                           isRenewed
                                             ? 'text-cyan-600 dark:text-cyan-400 font-extrabold'
                                             : urgency === 'overdue'
-                                            ? 'text-red-fg'
-                                            : urgency === 'due7'
-                                            ? 'text-amber-fg'
-                                            : urgency === 'due30'
-                                            ? 'text-green-fg'
-                                            : 'text-ink-faint',
+                                              ? 'text-red-fg'
+                                              : urgency === 'due7'
+                                                ? 'text-amber-fg'
+                                                : urgency === 'due30'
+                                                  ? 'text-green-fg'
+                                                  : 'text-ink-faint',
                                         )}
                                       >
                                         {daysLabel(days)}
@@ -418,7 +438,7 @@ export default function ClientDetailPage() {
                                       dot={!isRenewed}
                                       className={cn(
                                         isRenewed &&
-                                          'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 font-extrabold',
+                                        'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 font-extrabold',
                                       )}
                                     >
                                       {RENEWAL_STATUS_LABELS[policy.renewalStatus] ?? policy.renewalStatus}

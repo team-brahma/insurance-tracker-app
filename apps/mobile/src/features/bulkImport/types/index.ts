@@ -2,7 +2,10 @@ export interface RowProcessStatus {
   rowNumber: number;
   clientName: string;
   mobileNumber: string | null;
+  referenceName?: string | null;
   associate: string | null;
+  agentName?: string | null;
+  agentPhone?: string | null;
   policyTypeName: string;
   vehicleNumber: string | null;
   policyNumber: string | null;

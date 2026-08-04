@@ -10,6 +10,7 @@ interface ListPoliciesParams {
   policyType?: string | string[]; // This holds policyTypeId
   renewalStatus?: RenewalStatus | RenewalStatus[];
   urgency?: string;
+  month?: string;
   isOutsourced?: boolean;
   associateAgentId?: string;
   page?: number;
@@ -26,6 +27,7 @@ export const policyService = {
     if (params.urgency && ['overdue', 'due7', 'due30', 'future'].includes(params.urgency)) {
       filters.urgency = params.urgency;
     }
+    if (params.month) filters.month = params.month;
     if (params.isOutsourced !== undefined) filters.isOutsourced = params.isOutsourced;
     if (params.associateAgentId) filters.associateAgentId = params.associateAgentId;
 
@@ -48,6 +50,7 @@ export const policyService = {
       enquiryId?: string | null;
       insuredName: string;
       mobileNumber?: string | null;
+      referenceName?: string | null;
       referenceNote?: string | null;
       policyType: string; // This contains the policyTypeId
       vehicleNumber?: string | null;
@@ -71,14 +74,20 @@ export const policyService = {
     let client: {
       id: string;
       insuredName: string;
+      referenceName?: string | null;
       mobileNumber: string | null;
       isOutsourced?: boolean;
       associateAgentId?: string | null;
     } | null;
 
+    const formattedRefName = data.referenceName ? formatSmartClientName(data.referenceName) : null;
+
     if (data.clientId) {
       client = await clientRepository.findById(agentId, data.clientId);
       if (!client) throw new NotFoundError('Client', data.clientId);
+      if (formattedRefName && !client.referenceName) {
+        await clientRepository.update(agentId, client.id, { referenceName: formattedRefName });
+      }
     } else {
       client = data.mobileNumber
         ? await clientRepository.findByMobile(agentId, data.mobileNumber)
@@ -92,11 +101,13 @@ export const policyService = {
       }
       const clientPayload: {
         insuredName: string;
+        referenceName?: string | null;
         mobileNumber: string;
         isOutsourced?: boolean;
         associateAgentId?: string | null;
       } = {
         insuredName: formattedName,
+        referenceName: formattedRefName,
         mobileNumber: data.mobileNumber,
       };
       if (data.isOutsourced !== undefined) clientPayload.isOutsourced = data.isOutsourced;
@@ -119,6 +130,7 @@ export const policyService = {
       isOutsourced,
       associateAgentId,
     };
+    if (formattedRefName !== null) createData.referenceName = formattedRefName;
     if (data.insuranceProviderId !== undefined) createData.insuranceProviderId = data.insuranceProviderId;
     if (data.vehicleNumber !== undefined) createData.vehicleNumber = data.vehicleNumber;
     if (data.policyNumber !== undefined) createData.policyNumber = data.policyNumber;
@@ -161,6 +173,7 @@ export const policyService = {
       clientId?: string | null;
       insuredName?: string;
       mobileNumber?: string | null;
+      referenceName?: string | null;
       referenceNote?: string | null;
       policyType?: string; // This contains the policyTypeId
       vehicleNumber?: string | null;
@@ -191,6 +204,9 @@ export const policyService = {
       updateData.clientId = data.clientId;
     }
 
+    if (data.referenceName !== undefined) {
+      updateData.referenceName = data.referenceName ? formatSmartClientName(data.referenceName) : null;
+    }
     if (data.policyType !== undefined) updateData.policyTypeId = data.policyType;
     if (data.insuranceProviderId !== undefined) updateData.insuranceProviderId = data.insuranceProviderId;
     if (data.vehicleNumber !== undefined) updateData.vehicleNumber = data.vehicleNumber;

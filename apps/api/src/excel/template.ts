@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 const HEADERS = [
   'INSURED NAME',
   'MOBILE NUMBER',
+  'REFERENCE NAME',
   'ASSOCIATE NAME',
   'OUTSOURCE AGENT NAME',
   'OUTSOURCE AGENT MOBILE',
@@ -18,6 +19,7 @@ const EXAMPLE_ROW = [
   'MOHAN TEX',
   '9750931356',
   'DEEPESH JAIN',
+  'DEEPESH JAIN',
   'SURESH AGENT',
   '9842100000',
   'FIRE',
@@ -28,7 +30,7 @@ const EXAMPLE_ROW = [
   'Sample reference note',
 ];
 
-const COL_WIDTHS = [30, 18, 25, 25, 28, 18, 18, 28, 14, 16, 30];
+const COL_WIDTHS = [30, 18, 22, 25, 25, 28, 18, 18, 28, 14, 16, 30];
 
 export function generateTemplate(): Buffer {
   const wb = XLSX.utils.book_new();
@@ -43,6 +45,7 @@ export function generateReportExcel(
     rowNumber: number;
     clientName: string | null;
     mobileNumber: string | null;
+    referenceName?: string | null;
     associate: string | null;
     agentName?: string | null;
     agentPhone?: string | null;
@@ -60,6 +63,7 @@ export function generateReportExcel(
     'Row Number',
     'Insured Name',
     'Mobile Number',
+    'Reference Name',
     'Associate Name',
     'Outsource Agent Name',
     'Outsource Agent Mobile',
@@ -77,6 +81,7 @@ export function generateReportExcel(
     row.rowNumber,
     row.clientName ?? '',
     row.mobileNumber ?? '',
+    row.referenceName ?? '',
     row.associate ?? '',
     row.agentName ?? '',
     row.agentPhone ?? '',
@@ -93,7 +98,7 @@ export function generateReportExcel(
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
 
-  const widths = [12, 25, 18, 25, 22, 22, 16, 18, 22, 14, 16, 25, 15, 65];
+  const widths = [12, 25, 18, 22, 25, 22, 22, 16, 18, 22, 14, 16, 25, 15, 65];
   ws['!cols'] = widths.map((w) => ({ wch: w }));
 
   XLSX.utils.book_append_sheet(wb, ws, 'Import Report');

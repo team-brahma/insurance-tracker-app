@@ -1,10 +1,12 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
+import bcrypt from 'bcryptjs';
 import { assertAuthenticated } from '@middlewares/Auth.js';
 import { getDb } from '@database/index.js';
 import { authService } from '@services/AuthService.js';
+import { userRepository } from '@repositories/UserRepository.js';
 import { ValidationError, NotFoundError, ForbiddenError } from '@errors/AppError.js';
-import { HTTP_STATUS } from '@repo/constants';
-import { createUserSchema } from '@validators/index.js';
+import { HTTP_STATUS, AUTH } from '@repo/constants';
+import { createUserSchema, updateUserSchema } from '@validators/index.js';
 
 export const userController = {
   async list(request: FastifyRequest, reply: FastifyReply) {
@@ -40,6 +42,7 @@ export const userController = {
           email: true,
           name: true,
           role: true,
+          isOutsourcedEnabled: true,
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
@@ -78,16 +81,64 @@ export const userController = {
         parsed.error.issues.map((e: { message: string }) => e.message).join('; '),
       );
 
-    const { email, password, name, role: newRole } = parsed.data;
+    const { email, password, name, role: newRole, isOutsourcedEnabled } = parsed.data;
 
     const result = await authService.register({
       email,
       password,
       name,
       role: newRole ?? 'AGENT',
+      isOutsourcedEnabled: isOutsourcedEnabled ?? false,
     });
 
     return reply.code(HTTP_STATUS.CREATED).send({ success: true, data: result.user });
+  },
+
+  async update(request: FastifyRequest, reply: FastifyReply) {
+    const { role } = assertAuthenticated(request);
+    if (role !== 'ADMIN') throw new ForbiddenError('Admin access required');
+
+    const { id } = request.params as { id: string };
+    const parsed = updateUserSchema.safeParse(request.body);
+    if (!parsed.success)
+      throw new ValidationError(
+        parsed.error.issues.map((e: { message: string }) => e.message).join('; '),
+      );
+
+    const db = getDb();
+    const existing = await db.user.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('User', id);
+
+    const updateData: {
+      email?: string;
+      password?: string;
+      name?: string;
+      role?: 'ADMIN' | 'AGENT';
+      isOutsourcedEnabled?: boolean;
+    } = {};
+
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+    if (parsed.data.email !== undefined) updateData.email = parsed.data.email;
+    if (parsed.data.role !== undefined) updateData.role = parsed.data.role;
+    if (parsed.data.isOutsourcedEnabled !== undefined)
+      updateData.isOutsourcedEnabled = parsed.data.isOutsourcedEnabled;
+    if (parsed.data.password !== undefined) {
+      updateData.password = await bcrypt.hash(parsed.data.password, AUTH.BCRYPT_SALT_ROUNDS);
+    }
+
+    const updated = await userRepository.update(id, updateData);
+
+    return reply.code(HTTP_STATUS.OK).send({
+      success: true,
+      data: {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        role: updated.role,
+        isOutsourcedEnabled: updated.isOutsourcedEnabled,
+        createdAt: updated.createdAt.toISOString(),
+      },
+    });
   },
 
   async delete(request: FastifyRequest, reply: FastifyReply) {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearch } from '@hooks/useSearch.js';
-import { Search, Plus, Pencil, Trash2, ChevronRight, Users, Phone, Calendar, UserCheck, X } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, ChevronRight, Users, Phone, Calendar, UserCheck, X, Tag } from 'lucide-react';
 import { useHistory } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import AppShellPage from '@components/layout/AppShellPage.js';
@@ -264,93 +264,101 @@ export default function ClientListPage() {
                     }}
                   >
                     <div className="flex h-full min-w-0 flex-1 flex-col justify-between">
-                        <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={cn(
-                                'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
-                                getInitialsColor(client.insuredName),
-                              )}
-                            >
-                              {initials(client.insuredName)}
-                            </div>
-                            <div className="min-w-0 flex-1 text-left">
-                              <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-snug">
+                      <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              'flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl border text-xs font-bold shadow-sm transition-transform duration-300 group-hover:scale-105',
+                              getInitialsColor(client.insuredName),
+                            )}
+                          >
+                            {initials(client.insuredName)}
+                          </div>
+                          <div className="min-w-0 flex-1 text-left">
+                            <div className="flex items-center gap-1.5 gap-y-1 flex-wrap">
+                              <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-ink transition duration-200 group-hover:text-slate break-words leading-tight">
                                 {client.insuredName}
                               </h3>
-                              <p className="mt-0.5 text-xs font-bold text-ink-faint">
-                                {client.mobileNumber ?? 'No phone number'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                            {client.isOutsourced && (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 ring-1 ring-inset ring-purple-500/20">
-                                <UserCheck size={10} />
-                                <span>
-                                  Outsourced{client.associateAgent ? `: ${client.associateAgent.name}` : ''}
+                              {client.referenceName && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-cyan-500/15 dark:from-emerald-500/20 dark:via-teal-500/20 dark:to-cyan-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30 dark:border-emerald-400/40 text-[11px] font-black shadow-2xs backdrop-blur-xs">
+                                  <Tag size={10} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <span>({client.referenceName})</span>
                                 </span>
-                              </span>
-                            )}
-                            <Badge tone="neutral">
-                              {policyCount} {policyCount === 1 ? 'Policy' : 'Policies'}
-                            </Badge>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs font-bold text-ink-faint">
+                              {client.mobileNumber ?? 'No phone number'}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Footer row */}
-                        <div className="flex items-center justify-between border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
-                          <div className="flex items-center gap-1.5 text-ink-faint">
-                            <Calendar size={12} className="shrink-0 text-ink-faint/70" />
-                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.15em]">
-                              {`Added ${formatDate(client.createdAt)}`}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          {client.isOutsourced && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 ring-1 ring-inset ring-purple-500/20">
+                              <UserCheck size={10} />
+                              <span>
+                                Outsourced{client.associateAgent ? `: ${client.associateAgent.name}` : ''}
+                              </span>
                             </span>
-                          </div>
+                          )}
+                          <Badge tone="neutral">
+                            {policyCount} {policyCount === 1 ? 'Policy' : 'Policies'}
+                          </Badge>
+                        </div>
+                      </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {client.mobileNumber && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(`tel:${client.mobileNumber}`);
-                                }}
-                                title="Call contact"
-                                className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
-                              >
-                                <Phone size={13} />
-                              </button>
-                            )}
+                      {/* Footer row */}
+                      <div className="flex items-center justify-between border-t border-line/80 px-4 sm:px-5 py-3 bg-surface/30 group-hover:bg-surface/70 transition-colors duration-300">
+                        <div className="flex items-center gap-1.5 text-ink-faint">
+                          <Calendar size={12} className="shrink-0 text-ink-faint/70" />
+                          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.15em]">
+                            {`Added ${formatDate(client.createdAt)}`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {client.mobileNumber && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                history.push(`/clients/${client.id}/edit`);
+                                window.open(`tel:${client.mobileNumber}`);
                               }}
-                              title="Edit Client"
+                              title="Call contact"
                               className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
                             >
-                              <Pencil size={12} />
+                              <Phone size={13} />
                             </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteTarget(client);
-                              }}
-                              title="Delete Client"
-                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-red-fg active:scale-95 cursor-pointer"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                            <div className="flex h-5 w-5 items-center justify-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-slate">
-                              <ChevronRight size={14} />
-                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              history.push(`/clients/${client.id}/edit`);
+                            }}
+                            title="Edit Client"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-slate active:scale-95 cursor-pointer"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(client);
+                            }}
+                            title="Delete Client"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-line-strong bg-surface text-ink-soft shadow-sm transition hover:bg-paper hover:text-red-fg active:scale-95 cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                          <div className="flex h-5 w-5 items-center justify-center text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-slate">
+                            <ChevronRight size={14} />
                           </div>
                         </div>
                       </div>
-                    </SurfaceCard>
+                    </div>
+                  </SurfaceCard>
                 </motion.div>
               );
             })}

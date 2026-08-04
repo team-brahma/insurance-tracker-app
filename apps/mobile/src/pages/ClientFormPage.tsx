@@ -22,10 +22,12 @@ import Dialog from '@components/ui/Dialog.js';
 import Select from '@components/ui/Select.js';
 import Checkbox from '@components/ui/Checkbox.js';
 import { cn } from '@utils/Cn.js';
+import { useAuthStore } from '@features/auth/store/AuthStore.js';
 import { UserCheck, Plus } from 'lucide-react';
 
 const clientSchema = z.object({
   insuredName: z.string().min(1, 'Name is required').regex(VALIDATION.NAME, VALIDATION_ERRORS.NAME),
+  referenceName: z.string().optional().nullable(),
   mobileNumber: z
     .string()
     .min(1, 'Mobile number is required')
@@ -56,6 +58,7 @@ function getInitialsColor(name: string) {
 }
 
 export default function ClientFormPage() {
+  const currentUser = useAuthStore((s) => s.user);
   const { id } = useParams<{ id?: string }>();
   const history = useHistory();
   const isEdit = !!id;
@@ -99,6 +102,7 @@ export default function ClientFormPage() {
     if (existing) {
       return {
         insuredName: existing.insuredName,
+        referenceName: existing.referenceName ?? '',
         mobileNumber: existing.mobileNumber?.replace('+91', '') ?? '',
         isOutsourced: existing.isOutsourced ?? false,
         associateAgentId: existing.associateAgentId ?? '',
@@ -106,6 +110,7 @@ export default function ClientFormPage() {
     }
     return {
       insuredName: '',
+      referenceName: '',
       mobileNumber: '',
       isOutsourced: false,
       associateAgentId: '',
@@ -128,6 +133,7 @@ export default function ClientFormPage() {
     if (isEdit && existing) {
       reset({
         insuredName: existing.insuredName,
+        referenceName: existing.referenceName ?? '',
         mobileNumber: existing.mobileNumber?.replace('+91', '') ?? '',
         isOutsourced: existing.isOutsourced ?? false,
         associateAgentId: existing.associateAgentId ?? '',
@@ -135,6 +141,7 @@ export default function ClientFormPage() {
     } else if (!isEdit) {
       reset({
         insuredName: '',
+        referenceName: '',
         mobileNumber: '',
         isOutsourced: false,
         associateAgentId: '',
@@ -159,11 +166,13 @@ export default function ClientFormPage() {
     try {
       const payload: {
         insuredName: string;
+        referenceName?: string | null;
         mobileNumber: string;
         isOutsourced?: boolean;
         associateAgentId?: string | null;
       } = {
         insuredName: values.insuredName.trim(),
+        referenceName: values.referenceName?.trim() || null,
         mobileNumber: `+91${values.mobileNumber.replace(/\D/g, '').slice(-10)}`,
         isOutsourced: values.isOutsourced ?? false,
         associateAgentId: values.isOutsourced && values.associateAgentId ? values.associateAgentId : null,
@@ -180,6 +189,18 @@ export default function ClientFormPage() {
     }
   };
 
+  const handleOpenAddAgentModal = () => {
+    setNewAgentName('');
+    setNewAgentMobile('');
+    setIsAddAgentOpen(true);
+  };
+
+  const handleCloseAddAgentModal = () => {
+    setIsAddAgentOpen(false);
+    setNewAgentName('');
+    setNewAgentMobile('');
+  };
+
   const handleQuickAddAgent = async () => {
     if (!newAgentName.trim() || !newAgentMobile.trim()) {
       toast.error('Agent Name and Mobile are required.');
@@ -190,14 +211,10 @@ export default function ClientFormPage() {
         name: newAgentName.trim(),
         mobileNumber: newAgentMobile.trim(),
       });
-      toast.success(`Associate agent "${newAgentName}" created.`);
       setValue('associateAgentId', res.data.id);
-      setIsAddAgentOpen(false);
-      setNewAgentName('');
-      setNewAgentMobile('');
-    } catch (err) {
-      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      toast.error(axiosError.response?.data?.message ?? axiosError.message ?? 'Failed to add agent.');
+      handleCloseAddAgentModal();
+    } catch {
+      // Global error handler in App.tsx automatically displays single error toast
     }
   };
 
@@ -382,6 +399,13 @@ export default function ClientFormPage() {
             />
 
             <Input
+              label="Reference Name (Optional)"
+              placeholder="e.g. Oasis EV Car, Riro"
+              error={errors.referenceName?.message}
+              {...register('referenceName')}
+            />
+
+            <Input
               label="Mobile Number"
               placeholder="e.g. 9876543210"
               required
@@ -391,45 +415,47 @@ export default function ClientFormPage() {
             />
 
             {/* Outsource / Associate Agent Section */}
-            <div className="pt-2 border-t border-line/60 space-y-3">
-              <Checkbox
-                id="client_is_outsourced"
-                checked={!!watchIsOutsourced}
-                onCheckedChange={(checked) => setValue('isOutsourced', checked)}
-                label={
-                  <span className="flex items-center gap-1.5 font-semibold text-ink">
-                    <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
-                    Outsourced / Other Agent Customer
-                  </span>
-                }
-              />
+            {currentUser?.isOutsourcedEnabled && (
+              <div className="pt-2 border-t border-line/60 space-y-3">
+                <Checkbox
+                  id="client_is_outsourced"
+                  checked={!!watchIsOutsourced}
+                  onCheckedChange={(checked) => setValue('isOutsourced', checked)}
+                  label={
+                    <span className="flex items-center gap-1.5 font-semibold text-ink">
+                      <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
+                      Outsourced / Other Agent Customer
+                    </span>
+                  }
+                />
 
-              {watchIsOutsourced && (
-                <div className="pl-7 space-y-3 pt-1">
-                  <div className="flex items-end gap-2 w-full min-w-0">
-                    <div className="flex-1 min-w-0">
-                      <Select
-                        label="Select Associate Agent"
-                        value={watchAssociateAgentId || ''}
-                        onValueChange={(val) => setValue('associateAgentId', val)}
-                        options={associateAgentOptions}
-                        error={errors.associateAgentId?.message}
-                      />
+                {watchIsOutsourced && (
+                  <div className="pl-7 space-y-3 pt-1">
+                    <div className="flex items-end gap-2 w-full min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <Select
+                          label="Select Associate Agent"
+                          value={watchAssociateAgentId || ''}
+                          onValueChange={(val) => setValue('associateAgentId', val)}
+                          options={associateAgentOptions}
+                          error={errors.associateAgentId?.message}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        title="Add Associate Agent"
+                        className="shrink-0 flex h-11 w-11 items-center justify-center p-0 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10 active:scale-95 transition-all rounded-xl"
+                        onClick={handleOpenAddAgentModal}
+                      >
+                        <Plus size={18} />
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      title="Add Associate Agent"
-                      className="shrink-0 flex h-11 w-11 items-center justify-center p-0 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10 active:scale-95 transition-all rounded-xl"
-                      onClick={() => setIsAddAgentOpen(true)}
-                    >
-                      <Plus size={18} />
-                    </Button>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {isDesktop && (
               <div className="flex gap-3 pt-3 border-t border-line">
@@ -496,7 +522,7 @@ export default function ClientFormPage() {
       {/* Quick Add Associate Agent Dialog */}
       <Dialog
         open={isAddAgentOpen}
-        onClose={() => setIsAddAgentOpen(false)}
+        onClose={handleCloseAddAgentModal}
         title="Quick Add Associate Agent"
         description="Add a new external partner agent to select for this customer."
       >
@@ -514,7 +540,7 @@ export default function ClientFormPage() {
             onChange={(e) => setNewAgentMobile(e.target.value)}
           />
           <div className="flex justify-end gap-2 pt-4 border-t border-line/45 mt-4">
-            <Button variant="outline" type="button" onClick={() => setIsAddAgentOpen(false)}>
+            <Button variant="outline" type="button" onClick={handleCloseAddAgentModal}>
               Cancel
             </Button>
             <Button

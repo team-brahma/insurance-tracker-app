@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService, type UserListParams } from '../services/UserService.js';
-import type { RegisterDto } from '@repo/types';
+import type { RegisterDto, UpdateUserDto } from '@repo/types';
 
 export const userKeys = {
   all: ['users'] as const,
@@ -37,6 +37,23 @@ export function useCreateUserMutation() {
     },
     meta: {
       successMessage: (variables: RegisterDto) => `User "${variables.name}" created successfully.`,
+    },
+  });
+}
+
+export function useUpdateUserMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateUserDto }) =>
+      userService.updateUser(id, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: userKeys.all });
+    },
+    meta: {
+      successMessage: (variables: { id: string; data: UpdateUserDto }) =>
+        variables.data.name
+          ? `User "${variables.data.name}" updated successfully.`
+          : 'User updated successfully.',
     },
   });
 }
