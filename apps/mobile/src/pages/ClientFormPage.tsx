@@ -407,6 +407,13 @@ export default function ClientFormPage() {
 
             <Input
               label="Mobile Number"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={10}
+              onInput={(e) => {
+                e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '').slice(0, 10);
+              }}
               placeholder="e.g. 9876543210"
               required
               error={errors.mobileNumber?.message}
@@ -535,9 +542,13 @@ export default function ClientFormPage() {
           />
           <Input
             label="Mobile Number"
+            type="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={10}
             placeholder="e.g. 9876543210"
             value={newAgentMobile}
-            onChange={(e) => setNewAgentMobile(e.target.value)}
+            onChange={(e) => setNewAgentMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
           />
           <div className="flex justify-end gap-2 pt-4 border-t border-line/45 mt-4">
             <Button variant="outline" type="button" onClick={handleCloseAddAgentModal}>

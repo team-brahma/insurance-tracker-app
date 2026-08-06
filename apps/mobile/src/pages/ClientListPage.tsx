@@ -13,6 +13,7 @@ import Button from '@components/ui/Button.js';
 import Select from '@components/ui/Select.js';
 import { useInfiniteClientsQuery, useDeleteClientMutation } from '@features/clients/index.js';
 import { useAssociateAgentsQuery } from '@features/associateAgents/index.js';
+import { useAuthStore } from '@features/auth/store/AuthStore.js';
 import type { ClientWithPolicies } from '@features/clients/types/index.js';
 import { formatDate, initials } from '@repo/utils';
 import { cn } from '@utils/Cn.js';
@@ -44,12 +45,17 @@ const cardVariant = {
 
 export default function ClientListPage() {
   const history = useHistory();
+  const currentUser = useAuthStore((s) => s.user);
+  const hasOutsourcedProvision = !!currentUser?.isOutsourcedEnabled;
+
   const { searchText, debouncedSearchText, setSearchText, clearSearch } = useSearch();
   const [deleteTarget, setDeleteTarget] = useState<ClientWithPolicies | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'direct' | 'outsourced'>('all');
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
 
-  const { data: associateAgents = [] } = useAssociateAgentsQuery();
+  const { data: associateAgents = [] } = useAssociateAgentsQuery(undefined, {
+    enabled: hasOutsourcedProvision,
+  });
 
   const associateAgentOptions = useMemo(
     () => [
@@ -164,55 +170,57 @@ export default function ClientListPage() {
               )}
             </div>
 
-            {/* Filter modes */}
-            <div className="flex items-center gap-1 bg-paper/80 p-1 rounded-2xl border border-line shrink-0 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterMode('all');
-                  setSelectedAgentId('');
-                }}
-                className={cn(
-                  'px-3 py-1.5 rounded-xl transition-all cursor-pointer',
-                  filterMode === 'all' && !selectedAgentId
-                    ? 'bg-surface text-ink shadow-sm border border-line'
-                    : 'text-ink-faint hover:text-ink',
-                )}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterMode('direct');
-                  setSelectedAgentId('');
-                }}
-                className={cn(
-                  'px-3 py-1.5 rounded-xl transition-all cursor-pointer',
-                  filterMode === 'direct'
-                    ? 'bg-surface text-ink shadow-sm border border-line'
-                    : 'text-ink-faint hover:text-ink',
-                )}
-              >
-                Direct
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterMode('outsourced')}
-                className={cn(
-                  'px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1',
-                  filterMode === 'outsourced'
-                    ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 shadow-sm border border-purple-500/30'
-                    : 'text-ink-faint hover:text-ink',
-                )}
-              >
-                <UserCheck size={12} />
-                <span>Outsourced</span>
-              </button>
-            </div>
+            {/* Filter modes — only show for logins with outsourced facility provision */}
+            {hasOutsourcedProvision && (
+              <div className="flex items-center gap-1 bg-paper/80 p-1 rounded-2xl border border-line shrink-0 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterMode('all');
+                    setSelectedAgentId('');
+                  }}
+                  className={cn(
+                    'px-3 py-1.5 rounded-xl transition-all cursor-pointer',
+                    filterMode === 'all' && !selectedAgentId
+                      ? 'bg-surface text-ink shadow-sm border border-line'
+                      : 'text-ink-faint hover:text-ink',
+                  )}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterMode('direct');
+                    setSelectedAgentId('');
+                  }}
+                  className={cn(
+                    'px-3 py-1.5 rounded-xl transition-all cursor-pointer',
+                    filterMode === 'direct'
+                      ? 'bg-surface text-ink shadow-sm border border-line'
+                      : 'text-ink-faint hover:text-ink',
+                  )}
+                >
+                  Direct
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode('outsourced')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1',
+                    filterMode === 'outsourced'
+                      ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 shadow-sm border border-purple-500/30'
+                      : 'text-ink-faint hover:text-ink',
+                  )}
+                >
+                  <UserCheck size={12} />
+                  <span>Outsourced</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {filterMode === 'outsourced' && associateAgents.length > 0 && (
+          {hasOutsourcedProvision && filterMode === 'outsourced' && associateAgents.length > 0 && (
             <div className="flex items-center gap-2 pt-1 text-xs">
               <span className="text-ink-faint font-semibold">Filter by Associate Agent:</span>
               <Select

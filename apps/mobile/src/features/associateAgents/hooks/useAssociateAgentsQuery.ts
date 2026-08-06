@@ -8,13 +8,17 @@ export const associateAgentKeys = {
   detail: (id: string) => ['associateAgents', 'detail', id] as const,
 };
 
-export function useAssociateAgentsQuery(params?: { search?: string }) {
+export function useAssociateAgentsQuery(
+  params?: { search?: string },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: associateAgentKeys.list(params),
     queryFn: async () => {
       const response = await associateAgentService.list(params);
       return response.data;
     },
+    enabled: options?.enabled ?? true,
   });
 }
 

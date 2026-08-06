@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useHistory } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Mail, Lock } from 'lucide-react';
 import { IonPage, IonContent, IonHeader, IonToolbar } from '@ionic/react';
 import Input from '@components/ui/Input.js';
 import Button from '@components/ui/Button.js';
@@ -44,20 +44,24 @@ export default function LoginPage() {
         />
       </IonHeader>
       <IonContent className="ion-padding-bottom">
-        <div className="flex min-h-full items-center justify-center bg-body-bg p-4">
+        <div className="relative flex min-h-full items-center justify-center bg-body-bg p-4 overflow-hidden">
+          {/* Subtle background glow decorative elements */}
+          <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-slate/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-20 h-72 w-72 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="w-full max-w-sm"
+            className="relative z-10 w-full max-w-sm"
           >
-            <div className="rounded-2xl border border-line bg-surface p-8 shadow-lg">
+            <div className="rounded-2xl border border-line bg-surface p-8 shadow-xl">
               <div className="mb-8 text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-slate text-white shadow-[0_8px_24px_rgba(15,118,110,0.30)]">
-                  <ShieldCheck size={28} strokeWidth={2} />
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-tr from-slate to-slate-soft text-white shadow-[0_8px_24px_rgba(15,118,110,0.30)]">
+                  <ShieldCheck size={28} strokeWidth={2.2} />
                 </div>
-                <h1 className="text-xl font-black tracking-tight text-ink">InsurTrack Pro</h1>
-                <p className="mt-1 text-sm text-ink-soft">Sign in to your account</p>
+                <h1 className="text-2xl font-black tracking-tight text-ink">InsurTrack Pro</h1>
+                <p className="mt-1 text-sm font-medium text-ink-soft">Sign in to access your portal</p>
               </div>
 
               <form
@@ -71,6 +75,7 @@ export default function LoginPage() {
                   label="Email"
                   type="email"
                   placeholder="agent@insurtrack.com"
+                  leftElement={<Mail size={16} />}
                   error={errors.email?.message}
                   {...register('email')}
                   required
@@ -80,16 +85,19 @@ export default function LoginPage() {
                   label="Password"
                   type="password"
                   placeholder="Enter your password"
+                  leftElement={<Lock size={16} />}
                   error={errors.password?.message}
                   {...register('password')}
                   required
                 />
 
                 {loginMutation.isError && loginMutation.error instanceof Error && (
-                  <p className="text-xs font-medium text-red-fg">{loginMutation.error.message}</p>
+                  <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-center">
+                    <p className="text-xs font-semibold text-red-fg">{loginMutation.error.message}</p>
+                  </div>
                 )}
 
-                <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+                <Button type="submit" className="w-full h-11 text-sm font-bold shadow-md" disabled={loginMutation.isPending}>
                   {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
                 </Button>
               </form>
@@ -100,3 +108,4 @@ export default function LoginPage() {
     </IonPage>
   );
 }
+

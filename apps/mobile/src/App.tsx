@@ -104,6 +104,7 @@ const queryClient = new QueryClient({
       const message = getErrorMessage(error);
       toast.error(message, {
         description: query.meta?.errorMessage,
+        duration: 6000,
       });
     },
   }),
@@ -127,7 +128,7 @@ const queryClient = new QueryClient({
         typeof errorMessage === 'function'
           ? errorMessage(variables, error)
           : errorMessage || message;
-      toast.error(text);
+      toast.error(text, { duration: 6000 });
     },
   }),
 });
@@ -356,7 +357,7 @@ export default function App() {
         position="top-right"
         richColors
         closeButton
-        duration={15000}
+        duration={4000}
         toastOptions={{
           style: {
             fontFamily: 'Inter, system-ui, sans-serif',

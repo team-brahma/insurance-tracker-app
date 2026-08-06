@@ -528,6 +528,13 @@ export default function EnquiryFormPage() {
 
             <Input
               label="Mobile Number"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={10}
+              onInput={(e) => {
+                e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '').slice(0, 10);
+              }}
               placeholder="e.g. 9876543210"
               required
               error={errors.mobileNumber?.message}

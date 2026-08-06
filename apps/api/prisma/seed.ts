@@ -109,13 +109,24 @@ async function main() {
     name: string;
     mobileNumber: string;
     policyTypeId: string;
-    referredBy?: string;
+    referredBy?: string | null;
     remindOn: Date | null;
     status: 'OPEN' | 'CONVERTED' | 'DROPPED';
-    vehicleNumber?: string;
+    vehicleNumber?: string | null;
   }) {
     return db.$transaction(async (tx) => {
-      const enquiry = await tx.enquiry.create({ data });
+      const enquiry = await tx.enquiry.create({
+        data: {
+          agentId: data.agentId,
+          name: data.name,
+          mobileNumber: data.mobileNumber,
+          policyTypeId: data.policyTypeId,
+          referredBy: data.referredBy ?? null,
+          remindOn: data.remindOn,
+          status: data.status,
+          vehicleNumber: data.vehicleNumber ?? null,
+        },
+      });
       await tx.enquiryStatusHistory.create({
         data: {
           enquiryId: enquiry.id,

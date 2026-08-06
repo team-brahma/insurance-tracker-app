@@ -252,7 +252,7 @@ export async function initPushNotifications(navigate: NotificationNavigateCallba
         const path = buildNavigationPath(data);
         toast(title, {
           description: body,
-          duration: 15000,
+          duration: 6000,
           action: {
             label: data.type === 'policy' ? 'View Policy' : 'View Enquiry',
             onClick: () => {
@@ -261,7 +261,7 @@ export async function initPushNotifications(navigate: NotificationNavigateCallba
           },
         });
       } else {
-        toast(title, { description: body, duration: 8000 });
+        toast(title, { description: body, duration: 6000 });
       }
     },
   );
